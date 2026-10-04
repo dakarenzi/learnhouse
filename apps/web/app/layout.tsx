@@ -1,12 +1,22 @@
 import '../styles/globals.css'
 import React from 'react'
 import Providers from '@components/Providers'
-import { Wix_Madefor_Text, Tajawal } from 'next/font/google'
+import { Wix_Madefor_Text, Tajawal, Instrument_Serif } from 'next/font/google'
 
 const wixMadeforText = Wix_Madefor_Text({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-default',
+})
+
+// Display serif for the BAC edition: greetings, hero and section titles.
+// `latin-ext` covers French accents and ligatures (é, è, ç, œ).
+const instrumentSerif = Instrument_Serif({
+  subsets: ['latin', 'latin-ext'],
+  weight: '400',
+  style: ['normal', 'italic'],
+  display: 'swap',
+  variable: '--font-instrument',
 })
 
 // Wix Madefor Text has no Arabic subset, so Arabic would otherwise fall back to
@@ -39,7 +49,7 @@ export default function RootLayout({
   // no-JS baseline for crawlers; the script overwrites it for everyone else.
   return (
     <html
-      className={`${wixMadeforText.variable} ${tajawal.variable}`}
+      className={`${wixMadeforText.variable} ${tajawal.variable} ${instrumentSerif.variable}`}
       lang="en"
       suppressHydrationWarning
     >

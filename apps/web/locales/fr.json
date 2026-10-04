@@ -5760,5 +5760,37 @@
     "folder_count_one": "{{count}} dossier",
     "item_count": "{{count}} éléments",
     "item_count_one": "{{count}} élément"
+  },
+  "bac": {
+    "eyebrow": "Terminale · Session {{session}}",
+    "greeting": "Bonjour, {{name}}.",
+    "greeting_anon": "Bonjour.",
+    "resume": "Reprendre",
+    "continue": "Continuer",
+    "lessons_done_one": "{{count}} leçon terminée",
+    "lessons_done_other": "{{count}} leçons terminées",
+    "percent_of_course": "{{pct}} % du cours",
+    "empty_hero_title": "Ton premier cours t’attend.",
+    "empty_hero_text": "Choisis une matière ci-dessous pour commencer. Ta progression apparaîtra ici.",
+    "calendar_title": "Prochaine échéance",
+    "calendar_text": "Deux épreuves écrites de spécialité, au printemps.",
+    "subjects": "Mes matières",
+    "see_all": "Tout voir",
+    "start": "Commencer",
+    "sign_in_title": "Connecte-toi pour voir tes cours",
+    "sign_in_text": "Les cours de cette académie ne sont visibles qu’une fois connecté.",
+    "deadlines": {
+      "mock_exam": "Bac blanc",
+      "parcoursup_wishes": "Vœux Parcoursup",
+      "specialty_tests": "Épreuves de spécialité",
+      "philosophy": "Philosophie",
+      "grand_oral": "Grand oral"
+    },
+    "periods": {
+      "december": "Décembre",
+      "jan_mar": "Janvier – mars",
+      "march": "Mars 2027",
+      "june": "Juin 2027"
+    }
   }
 }

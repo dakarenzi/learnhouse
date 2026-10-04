@@ -2,7 +2,7 @@
 import React from 'react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourses } from '@/hooks/queries/useCourses'
-import LandingClassic from '@components/Landings/LandingClassic'
+import LandingBac from '@components/Landings/LandingBac'
 import LandingCustom from '@components/Landings/LandingCustom'
 import { JsonLd } from '@components/SEO/JsonLd'
 import { getUriWithOrg } from '@services/config/config'
@@ -56,7 +56,7 @@ export default function HomeClient({ orgslug }: { orgslug: string }) {
       {hasCustomLanding ? (
         <LandingCustom landing={landingConfig} orgslug={orgslug} />
       ) : (
-        <LandingClassic
+        <LandingBac
           courses={courses || []}
           orgslug={orgslug}
           org_id={org.id}

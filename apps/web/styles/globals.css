@@ -192,6 +192,13 @@
   --color-chart-3: hsl(var(--chart-3));
   --color-chart-4: hsl(var(--chart-4));
   --color-chart-5: hsl(var(--chart-5));
+
+  /* BAC edition */
+  --color-bac: hsl(var(--bac-accent));
+  --color-bac-soft: hsl(var(--bac-accent-soft));
+  --color-bac-ink: hsl(var(--bac-ink));
+  --color-bac-line: hsl(var(--bac-line));
+  --font-display: var(--font-instrument), 'Times New Roman', serif;
 }
 
 /*
@@ -379,8 +386,14 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    /* BAC edition: warm paper canvas, ink text, one electric-blue accent */
+    --bac-accent: 232 100% 58%;
+    --bac-accent-soft: 232 100% 97%;
+    --bac-ink: 227 27% 9%;
+    --bac-line: 48 14% 87%;
+
+    --background: 48 22% 94%;
+    --foreground: 227 27% 9%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
@@ -2565,3 +2578,39 @@
   display: block;
 }
 
+
+/* ---------------------------------------------------------------------------
+   BAC edition — learner lesson view
+   Serif display headings and a calmer reading measure for lessons. Scoped to
+   the learner surface (.canva-content-wrapper), not the editor.
+   ------------------------------------------------------------------------ */
+.canva-content-wrapper .ProseMirror h1,
+.canva-content-wrapper .ProseMirror h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.canva-content-wrapper .ProseMirror h1 {
+  font-size: 2.5rem;
+}
+
+.canva-content-wrapper .ProseMirror h2 {
+  font-size: 1.875rem;
+}
+
+.canva-content-wrapper .ProseMirror p,
+.canva-content-wrapper .ProseMirror li {
+  line-height: 1.65;
+}
+
+/* A quote block doubles as a "Théorème / Méthode" callout in lessons. */
+.canva-content-wrapper .ProseMirror blockquote {
+  border: 1px solid hsl(var(--bac-line));
+  border-inline-start: 1px solid hsl(var(--bac-line));
+  background: #fff;
+  border-radius: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  font-style: normal;
+}

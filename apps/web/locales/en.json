@@ -6689,5 +6689,37 @@
       "from": "from",
       "subscription": "subscription"
     }
+  },
+  "bac": {
+    "eyebrow": "Final year · {{session}} session",
+    "greeting": "Hello, {{name}}.",
+    "greeting_anon": "Hello.",
+    "resume": "Resume",
+    "continue": "Continue",
+    "lessons_done_one": "{{count}} lesson completed",
+    "lessons_done_other": "{{count}} lessons completed",
+    "percent_of_course": "{{pct}}% of the course",
+    "empty_hero_title": "Your first course is waiting.",
+    "empty_hero_text": "Pick a subject below to get started. Your progress will show up here.",
+    "calendar_title": "Next milestone",
+    "calendar_text": "Two written specialty exams in the spring.",
+    "subjects": "My subjects",
+    "see_all": "See all",
+    "start": "Start",
+    "sign_in_title": "Sign in to see your courses",
+    "sign_in_text": "Courses in this academy are only visible once you are signed in.",
+    "deadlines": {
+      "mock_exam": "Mock exam",
+      "parcoursup_wishes": "Parcoursup wishes",
+      "specialty_tests": "Specialty exams",
+      "philosophy": "Philosophy",
+      "grand_oral": "Grand oral"
+    },
+    "periods": {
+      "december": "December",
+      "jan_mar": "January – March",
+      "march": "March 2027",
+      "june": "June 2027"
+    }
   }
 }
