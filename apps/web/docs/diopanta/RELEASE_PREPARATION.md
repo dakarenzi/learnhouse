@@ -7,34 +7,48 @@ Status: local preparation only. No VPS or registry changes have been made.
 - Upstream LearnHouse tag: `1.3.6`
 - Tag commit: `01c645862451a1d48529fd88e0398176883b15bd`
 - Validated optional-reading baseline: `850378222edc6b11972f0a2cbc83154e7e6b830a`
-- The Diopanta theme is scoped to the organization slug supplied by
-  `NEXT_PUBLIC_DIOPANTA_ORG_SLUG`. It stays disabled until an owner confirms
-  the slug. The value is public frontend configuration compiled into the
-  web bundle.
+- The Diopanta theme is scoped to `NEXT_PUBLIC_DIOPANTA_ORG_SLUG=default` for
+  the local release candidate. The value is public frontend configuration
+  compiled into the web bundle.
 - The changes in this branch are frontend and image-build configuration only.
   They add no database columns, backend endpoints, or course-content schema.
   Native TipTap Details content continues to use the existing M7 contract.
 
-The running VPS release and API identity have not been independently read back
-from the host. Treat `1.3.6` as the owner-stated target until the deployment
-operator records the running image digest and schema revision.
+The VPS public `/api/v1/instance/info` endpoint reports OSS mode, single
+tenancy, and default organization slug `default`. It reports
+`frontend_domain=localhost:3000` and `top_domain=localhost`, which the operator
+must reconcile with the public hostname. The local API reports SaaS mode and
+multi-tenancy, so local runtime behavior does not exactly match the VPS mode.
+The endpoint does not reveal the running image digest, architecture, database
+schema revision, or media mount.
 
 ## Local image build and identity
 
-Build only after the application build, test suite, local API/database course
-round-trip, and browser review pass. Confirm the target CPU architecture before
-building. Use the final full source SHA in both the tag and OCI label:
+The monolithic root `Dockerfile` pins its three base-image indexes by digest.
+These public registry index digests were resolved on 2026-10-09 and contain
+both `linux/amd64` and `linux/arm64` manifests:
+
+- `oven/bun:1.4.0-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb`
+- `python:3.14.7-alpine3.24@sha256:9e9fde4d32eedce0b661d9ab91e826b62dddf28e928c230ec55f1866cac66b01`
+- `ghcr.io/astral-sh/uv:0.10.7@sha256:edd1fd89f3e5b005814cc8f777610445d7b7e3ed05361f9ddfae67bebfe8456a`
+
+For an OSS image, pass `LEARNHOUSE_PUBLIC=true`; the root Dockerfile applies it
+to both the frontend and API stages so the separately licensed EE trees are
+removed. Confirm the VPS architecture and complete the local browser and API
+round-trip gates before producing a deployable image. Use the final full source
+SHA in both the tag and OCI label:
 
 ```sh
 source_sha=$(git rev-parse HEAD)
 image_tag="ghcr.io/dakarenzi/learnhouse:diopanta-1.3.6-${source_sha}"
 oci_file="/private/tmp/learnhouse-diopanta-${source_sha}.oci.tar"
 target_platform="SET_AFTER_VERIFYING_VPS_ARCHITECTURE"
-org_slug="SET_AFTER_CONFIRMING_DIOPANTA_ORG_SLUG"
+org_slug="default"
 
 docker buildx build \
   --platform "${target_platform}" \
   --build-arg "NEXT_PUBLIC_DIOPANTA_ORG_SLUG=${org_slug}" \
+  --build-arg LEARNHOUSE_PUBLIC=true \
   --label "org.opencontainers.image.revision=${source_sha}" \
   --label "org.opencontainers.image.version=diopanta-1.3.6-${source_sha}" \
   --tag "${image_tag}" \
@@ -47,23 +61,26 @@ SHA-256 separately) in the release record. Do not call the archive checksum an
 image digest. Registry publication is a separate owner-approved action; this
 preparation does not push an image.
 
-The repository Dockerfile still uses version tags for its build-stage base
-images. Before calling the build fully reproducible, resolve and pin those
-base-image digests for each target platform, then rebuild and record the exact
-OCI manifest digest.
+The build is not fully hermetic or bit-for-bit reproducible yet: it runs
+`apk upgrade` against mutable Alpine repositories and installs PM2 without an
+exact npm version. The application dependency lockfiles and base-image indexes
+are pinned, but those remaining build inputs must be fixed before claiming a
+fully reproducible artifact.
 
 ## Local integration gate
 
-The expected disposable test is a new local-only course created through the
-LearnHouse API and database. It should include ordinary content and a native
-TipTap `details` node, then verify editor save, reload, reader rendering,
-ordinary-course rendering, keyboard use, and desktop/mobile layout. Keep it in
-the synthetic local organization; do not seed or import it on the VPS.
+The local API/database stack is available. The ordinary API save/reopen of the
+synthetic M2 Details activity was verified in M8; the M9 read-only database
+check still finds one Details node with `attrs.open=true` at activity version
+2. It was not edited. The Philosophie course has three activities and table
+content; no equation markup was found.
 
-The local API/database stack was not available during this preparation, so
-this gate is still open. Docker Desktop is absent, the demo Compose directory
-and local demo secrets are absent, and no local API or database process was
-listening. No mock or harness is counted as API validation.
+In M9, `/login` and API `/api/v1/health` returned HTTP 200, and the local
+frontend served the CSS asset containing the Diopanta selectors. Authenticated
+reader/editor appearance and interactions remain unverified because the
+authorized browser-control environment denied access. Do not count the earlier
+M7 component-harness screenshots as full application evidence. The M9 browser
+gate remains open.
 
 ## Backup, upgrade, and rollback plan
 
@@ -108,6 +125,7 @@ student activity written after the backup before restoring.
 
 ## Current release gate
 
-Not ready for deployment. The frontend changes are locally reviewable, but the
-real local API/database course test, actual browser screenshots, OCI build,
-base-image digest pinning, and resulting image digest remain outstanding.
+Not ready for deployment. See `M9_RELEASE_RUNBOOK.md` for final local
+validation, VPS metadata gaps, owner-assisted checks, deployment steps, and
+rollback instructions. The Docker base images are pinned, but no OCI image was
+built or published and no image digest exists yet.

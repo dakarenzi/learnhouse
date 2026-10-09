@@ -1,7 +1,7 @@
 # ───────────────────────────────────────────────
 # Stage 1: Frontend dependency install
 # ───────────────────────────────────────────────
-FROM oven/bun:1.4.0-alpine AS frontend-deps
+FROM oven/bun:1.4.0-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS frontend-deps
 RUN apk upgrade --no-cache && apk add --no-cache libc6-compat
 WORKDIR /app
 
@@ -11,12 +11,16 @@ RUN bun install --frozen-lockfile
 # ───────────────────────────────────────────────
 # Stage 2: Frontend build
 # ───────────────────────────────────────────────
-FROM oven/bun:1.4.0-alpine AS frontend-builder
+FROM oven/bun:1.4.0-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS frontend-builder
 ARG NEXT_PUBLIC_DIOPANTA_ORG_SLUG
 ENV NEXT_PUBLIC_DIOPANTA_ORG_SLUG=${NEXT_PUBLIC_DIOPANTA_ORG_SLUG}
+ARG LEARNHOUSE_PUBLIC=false
 WORKDIR /app
 COPY --from=frontend-deps /app/node_modules ./node_modules
 COPY apps/web .
+
+# Keep public/OSS images free of the separately licensed frontend EE tree.
+RUN if [ "$LEARNHOUSE_PUBLIC" = "true" ]; then rm -rf /app/ee; fi
 
 # Disable telemetry during build
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -29,7 +33,7 @@ RUN bun run build
 # ───────────────────────────────────────────────
 # Stage 3: Frontend production image
 # ───────────────────────────────────────────────
-FROM oven/bun:1.4.0-alpine AS frontend-runner
+FROM oven/bun:1.4.0-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS frontend-runner
 WORKDIR /app
 
 RUN apk upgrade --no-cache && apk add --no-cache curl
@@ -55,7 +59,7 @@ RUN chmod +x server-wrapper.js
 # ───────────────────────────────────────────────
 # Stage 4: Collab server build
 # ───────────────────────────────────────────────
-FROM oven/bun:1.4.0-alpine AS collab-builder
+FROM oven/bun:1.4.0-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS collab-builder
 WORKDIR /app
 
 COPY apps/collab/package.json apps/collab/bun.lock* ./
@@ -69,7 +73,7 @@ RUN bun run build
 # ───────────────────────────────────────────────
 # Stage 5: Final image combining frontend + backend + collab
 # ───────────────────────────────────────────────
-FROM python:3.14.7-alpine3.24 AS runner
+FROM python:3.14.7-alpine3.24@sha256:9e9fde4d32eedce0b661d9ab91e826b62dddf28e928c230ec55f1866cac66b01 AS runner
 
 # Apply the stable distribution's security updates at build time. The Python
 # image can be published before a newer package fix reaches Alpine's mirrors.
@@ -84,7 +88,7 @@ RUN python -m pip uninstall --yes pip \
     && rm -rf /usr/local/lib/python3.14/ensurepip
 
 COPY --from=frontend-deps /usr/local/bin/bun /usr/local/bin/bun
-COPY --from=ghcr.io/astral-sh/uv:0.10.7 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.10.7@sha256:edd1fd89f3e5b005814cc8f777610445d7b7e3ed05361f9ddfae67bebfe8456a /uv /uvx /bin/
 
 # Copy the frontend standalone build
 COPY --from=frontend-runner /app /app/web
