@@ -337,13 +337,28 @@
 }
 
 [data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror [data-type='details'] {
-  border-color: #cfe3d6;
-  background: #f7fbf8;
-  box-shadow: 0 3px 12px rgb(23 107 67 / 5%);
+  border: 1px solid var(--diopanta-border);
+  border-inline-start: 3px solid var(--diopanta-green);
+  border-radius: 0.75rem;
+  padding: 1rem 1.15rem;
+  color: var(--diopanta-ink);
+  background: linear-gradient(110deg, var(--diopanta-pale-blue), #f9fcff 72%);
+  box-shadow: 0 2px 8px rgb(19 49 77 / 4%);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 [data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror .lesson-disclosure__summary {
-  color: #174b34;
+  color: var(--diopanta-green);
+  font-family: inherit;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror .lesson-disclosure__content {
+  color: var(--diopanta-ink);
+  font-family: inherit;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror [data-type='details'] > button {
+  color: var(--diopanta-blue);
 }
 
 [data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror [data-type='details'] > button:focus-visible {
@@ -384,6 +399,10 @@
 
   [data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror h3 {
     font-size: 1.25rem;
+  }
+
+  [data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror [data-type='details'] {
+    padding: 0.85rem 0.9rem;
   }
 }
 
