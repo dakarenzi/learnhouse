@@ -12,6 +12,8 @@ RUN bun install --frozen-lockfile
 # Stage 2: Frontend build
 # ───────────────────────────────────────────────
 FROM oven/bun:1.4.0-alpine AS frontend-builder
+ARG NEXT_PUBLIC_DIOPANTA_ORG_SLUG
+ENV NEXT_PUBLIC_DIOPANTA_ORG_SLUG=${NEXT_PUBLIC_DIOPANTA_ORG_SLUG}
 WORKDIR /app
 COPY --from=frontend-deps /app/node_modules ./node_modules
 COPY apps/web .

@@ -181,7 +181,7 @@ function Courses(props: CourseProps) {
 
   return (
     <FeatureGate feature="courses" orgslug={orgslug} context="public">
-    <div className="w-full">
+    <div className="w-full diopanta-course-catalog">
       <GeneralWrapperStyled>
         <div className="flex flex-col space-y-2 mb-2">
           <div className="flex items-center justify-between">
