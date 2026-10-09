@@ -17,6 +17,7 @@ interface HeadingItem {
 const TableOfContents = ({ editor }: TableOfContentsProps) => {
   const { t } = useTranslation()
   const [headings, setHeadings] = useState<HeadingItem[]>([])
+  const [activeHeadingId, setActiveHeadingId] = useState('')
 
   useEffect(() => {
     if (!editor) return
@@ -68,6 +69,49 @@ const TableOfContents = ({ editor }: TableOfContentsProps) => {
     }
   }, [editor])
 
+  useEffect(() => {
+    if (!editor || headings.length === 0) return
+
+    let frameId = 0
+
+    const updateActiveHeading = () => {
+      frameId = 0
+      const visibleHeadings = headings
+        .map(({ id }) => ({ id, element: document.getElementById(id) }))
+        .filter(({ element }) => element && editor.view.dom.contains(element) && element.getClientRects().length > 0)
+
+      if (visibleHeadings.length === 0) return
+
+      const activationLine = Math.min(240, Math.max(140, window.innerHeight * 0.35))
+      let activeId = visibleHeadings[0].id
+      for (const heading of visibleHeadings) {
+        if (heading.element!.getBoundingClientRect().top > activationLine) break
+        activeId = heading.id
+      }
+
+      setActiveHeadingId((currentId) => currentId === activeId ? currentId : activeId)
+    }
+
+    const scheduleActiveHeadingUpdate = () => {
+      if (frameId) return
+      frameId = window.requestAnimationFrame(updateActiveHeading)
+    }
+
+    window.addEventListener('scroll', scheduleActiveHeadingUpdate, { passive: true })
+    window.addEventListener('resize', scheduleActiveHeadingUpdate)
+    // The reader can reveal a Details ancestor on a TOC click. Recompute after
+    // the click's synchronous toggle and native anchor navigation have settled.
+    document.addEventListener('click', scheduleActiveHeadingUpdate, true)
+    scheduleActiveHeadingUpdate()
+
+    return () => {
+      if (frameId) window.cancelAnimationFrame(frameId)
+      window.removeEventListener('scroll', scheduleActiveHeadingUpdate)
+      window.removeEventListener('resize', scheduleActiveHeadingUpdate)
+      document.removeEventListener('click', scheduleActiveHeadingUpdate, true)
+    }
+  }, [editor, headings])
+
   if (headings.length === 0) return null
 
   return (
@@ -85,6 +129,7 @@ const TableOfContents = ({ editor }: TableOfContentsProps) => {
               <a
                 className={`toc-link toc-link-h${heading.level}`}
                 data-testid="lesson-toc-link"
+                aria-current={activeHeadingId === heading.id ? 'location' : undefined}
                 href={`#${heading.id}`}
                 onClick={() => revealCollapsedAncestors(editor, heading.id)}
               >

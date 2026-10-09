@@ -139,22 +139,24 @@ const CourseThumbnailLanding: React.FC<PropsType> = ({ course, orgslug, customLi
     : '/empty_thumbnail.png'
 
   return (
-    <div className="relative flex flex-col bg-white rounded-xl nice-shadow overflow-hidden min-w-[280px] w-full max-w-sm shrink-0 m-2">
+    <div className="diopanta-course-card relative flex flex-col bg-white rounded-xl nice-shadow overflow-hidden min-w-[280px] w-full max-w-sm shrink-0 m-2">
       <AdminEditOptions
         course={course}
         orgslug={orgslug}
         deleteCourse={deleteCourse}
       />
-      <Link prefetch={false} href={customLink ? customLink : getUriWithOrg(orgslug, `/course/${removeCoursePrefix(course.course_uuid)}`)}>
+      <Link prefetch={false} aria-label={course.name} href={customLink ? customLink : getUriWithOrg(orgslug, `/course/${removeCoursePrefix(course.course_uuid)}`)}>
         <div
-          className="inset-0 ring-1 ring-inset ring-black/10 rounded-t-xl w-full aspect-video bg-cover bg-center"
-          style={{ backgroundImage: `url(${thumbnailImage})` }}
+          className="diopanta-course-card__cover inset-0 ring-1 ring-inset ring-black/10 rounded-t-xl w-full aspect-video bg-cover bg-center"
+          aria-hidden="true"
+          data-empty-cover={course.thumbnail_image ? undefined : 'true'}
+          style={{ backgroundImage: course.thumbnail_image ? `url(${thumbnailImage})` : undefined }}
         />
       </Link>
       <div className='flex flex-col w-full p-4 space-y-3'>
         <div className="space-y-2">
-          <h2 className="font-bold text-gray-800 leading-tight text-base min-h-[2.75rem] line-clamp-2" dir="auto">{course.name}</h2>
-          <p className='text-xs text-gray-700 leading-normal min-h-[3.75rem] line-clamp-3'>{course.description}</p>
+          <h2 className="diopanta-course-card__title font-bold text-gray-800 leading-tight text-base min-h-[2.75rem] line-clamp-2" dir="auto">{course.name}</h2>
+          <p className='diopanta-course-card__description text-xs text-gray-700 leading-normal min-h-[3.75rem] line-clamp-3'>{course.description}</p>
         </div>
         
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -202,7 +204,7 @@ const CourseThumbnailLanding: React.FC<PropsType> = ({ course, orgslug, customLi
         <Link 
           prefetch 
           href={customLink ? customLink : getUriWithOrg(orgslug, `/course/${removeCoursePrefix(course.course_uuid)}`)}
-          className="inline-flex items-center justify-center w-full px-3 py-1.5 bg-black text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors"
+          className="diopanta-course-card__cta inline-flex items-center justify-center w-full px-3 py-1.5 bg-black text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors"
         >
           {t('courses.start_learning')}
         </Link>

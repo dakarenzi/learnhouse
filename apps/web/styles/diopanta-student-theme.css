@@ -1,0 +1,415 @@
+/* Diopanta learner theme. The org layout opts in only for the explicitly
+   configured org slug and learner catalog, overview, and lesson routes. */
+[data-diopanta-theme='enabled'] {
+  --diopanta-blue: #1769d2;
+  --diopanta-blue-deep: #0d4b92;
+  --diopanta-green: #176b43;
+  --diopanta-ink: #172f49;
+  --diopanta-muted: #43586d;
+  --diopanta-pale-blue: #eff6ff;
+  --diopanta-pale-green: #eef8f1;
+  --diopanta-border: #d8e3ee;
+}
+
+[data-diopanta-theme='enabled'] :is(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--diopanta-blue) !important;
+  outline-offset: 3px;
+}
+
+[data-diopanta-theme='enabled'] .diopanta-course-card {
+  border: 1px solid var(--diopanta-border);
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(19 49 77 / 7%);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+[data-diopanta-theme='enabled'] .diopanta-course-card:hover {
+  border-color: #b9d1ea;
+  box-shadow: 0 14px 32px rgb(19 49 77 / 13%);
+  transform: translateY(-2px);
+}
+
+[data-diopanta-theme='enabled'] .diopanta-course-card__cover-link {
+  background-color: var(--diopanta-pale-blue);
+}
+
+[data-diopanta-theme='enabled'] .diopanta-course-card__cover[data-empty-cover='true'],
+[data-diopanta-theme='enabled'] .diopanta-course-cover--empty {
+  background-color: var(--diopanta-blue-deep);
+  background-image:
+    radial-gradient(ellipse at 80% 18%, rgb(255 255 255 / 24%), transparent 35%),
+    linear-gradient(128deg, #0d4b92 0%, #1769d2 54%, #176b43 100%);
+  background-size: cover;
+}
+
+[data-diopanta-theme='enabled'] .diopanta-course-card__cover {
+  background-position: center;
+  background-size: cover;
+}
+
+[data-diopanta-theme='enabled'] .diopanta-course-card__title {
+  color: var(--diopanta-ink);
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+[data-diopanta-theme='enabled'] .diopanta-course-card__description {
+  color: var(--diopanta-muted);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+[data-diopanta-theme='enabled'] .diopanta-course-card__cta {
+  color: var(--diopanta-blue-deep);
+  font-weight: 700;
+}
+
+[data-diopanta-theme='enabled'] .diopanta-course-card a.diopanta-course-card__cta {
+  color: #fff;
+  background: var(--diopanta-blue);
+  border-radius: 0.6rem;
+  padding: 0.65rem 0.8rem;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color 150ms ease;
+}
+
+[data-diopanta-theme='enabled'] .diopanta-course-card a.diopanta-course-card__cta:hover {
+  background: var(--diopanta-blue-deep);
+}
+
+[data-diopanta-page='catalog'] .diopanta-course-catalog {
+  padding-block: 0.35rem 1.5rem;
+}
+
+[data-diopanta-page='catalog'] .diopanta-course-catalog .grid > div {
+  min-width: 0;
+}
+
+[data-diopanta-page='catalog'] .diopanta-course-card {
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  height: 100%;
+}
+
+[data-diopanta-page='catalog'] .diopanta-course-catalog h1 {
+  color: var(--diopanta-ink);
+  font-size: clamp(1.75rem, 3vw, 2.3rem);
+  letter-spacing: -0.025em;
+}
+
+[data-diopanta-page='catalog'] .diopanta-course-catalog input[type='text'],
+[data-diopanta-page='catalog'] .diopanta-course-catalog select {
+  min-height: 2.9rem;
+  border: 1px solid var(--diopanta-border);
+  border-radius: 0.7rem;
+  color: var(--diopanta-ink);
+  box-shadow: 0 2px 8px rgb(19 49 77 / 5%);
+}
+
+[data-diopanta-page='catalog'] .diopanta-course-catalog input[type='text']:focus-visible,
+[data-diopanta-page='catalog'] .diopanta-course-catalog select:focus-visible {
+  border-color: var(--diopanta-blue);
+  box-shadow: 0 0 0 3px rgb(23 105 210 / 16%);
+}
+
+[data-diopanta-page='overview'] .diopanta-course-overview h1 {
+  color: var(--diopanta-ink);
+  font-size: clamp(1.75rem, 3.3vw, 2.5rem);
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+[data-diopanta-page='overview'] .diopanta-course-cover {
+  width: 100%;
+  height: auto;
+  min-height: 12rem;
+  max-height: 28rem;
+  aspect-ratio: 16 / 9;
+  background-color: var(--diopanta-pale-blue);
+  background-position: center;
+  background-size: cover;
+  border-radius: 1rem;
+  box-shadow: 0 12px 30px rgb(19 49 77 / 12%);
+}
+
+[data-diopanta-page='overview'] .course_metadata_left p {
+  color: #2d4054;
+  font-size: 1.025rem;
+  line-height: 1.8;
+}
+
+[data-diopanta-page='overview'] .course_metadata_right > div,
+[data-diopanta-page='overview'] .diopanta-learning-objectives {
+  border-color: var(--diopanta-border);
+  border-radius: 0.9rem;
+  box-shadow: 0 8px 24px rgb(19 49 77 / 7%);
+}
+
+[data-diopanta-page='overview'] .diopanta-learning-check {
+  color: var(--diopanta-green);
+}
+
+[data-diopanta-page='overview'] .diopanta-course-chapter {
+  border-block-end: 1px solid var(--diopanta-border);
+}
+
+[data-diopanta-page='overview'] .diopanta-course-chapter-toggle {
+  appearance: none;
+  border: 0;
+  border-inline-start: 4px solid transparent;
+  color: var(--diopanta-ink);
+  background: #f6f9fc;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+[data-diopanta-page='overview'] .diopanta-course-chapter-toggle:hover,
+[data-diopanta-page='overview'] .diopanta-course-chapter-toggle[aria-expanded='true'] {
+  border-inline-start-color: var(--diopanta-blue);
+  background: var(--diopanta-pale-blue);
+}
+
+[data-diopanta-page='overview'] .diopanta-course-chapter-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: start;
+  white-space: normal;
+}
+
+[data-diopanta-page='overview'] .diopanta-course-chapter-toggle:focus-visible {
+  outline: 2px solid var(--diopanta-blue) !important;
+  outline-offset: -2px;
+}
+
+[data-diopanta-page='overview'] .diopanta-course-chapter-panel a.activity-container {
+  border-block-start: 1px solid #e8eef4;
+  color: var(--diopanta-ink);
+  transition: background-color 140ms ease;
+}
+
+[data-diopanta-page='overview'] .diopanta-course-chapter-panel a.activity-container:hover {
+  background: #f4f9ff;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .lesson-toc {
+  position: sticky;
+  inset-block-start: 5.5rem;
+  max-height: calc(100vh - 7rem);
+  overflow-y: auto;
+  padding: 1rem;
+  border: 1px solid #c8dbee;
+  border-radius: 0.9rem;
+  background: var(--diopanta-pale-blue);
+  box-shadow: 0 6px 18px rgb(19 49 77 / 7%);
+  scrollbar-color: #9bbce0 transparent;
+}
+
+[data-diopanta-page='lesson'] .lesson-toc__title {
+  color: #234563;
+  font-size: 0.75rem;
+  letter-spacing: 0.09em;
+}
+
+[data-diopanta-page='lesson'] .lesson-toc .toc-item {
+  gap: 0.45rem;
+  margin-block: 0.25rem;
+}
+
+[data-diopanta-page='lesson'] .lesson-toc .toc-check {
+  flex: 0 0 auto;
+  margin-block-start: 0.25rem;
+  color: #4d6881;
+}
+
+[data-diopanta-page='lesson'] .lesson-toc .toc-link {
+  display: block;
+  min-width: 0;
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.45rem;
+  color: #29455f;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+[data-diopanta-page='lesson'] .lesson-toc .toc-link:hover {
+  color: var(--diopanta-blue-deep);
+  background: #e1efff;
+}
+
+[data-diopanta-page='lesson'] .lesson-toc .toc-link[aria-current='location'] {
+  color: #0d3d73;
+  background: #dbeafe;
+  box-shadow: inset 3px 0 0 var(--diopanta-blue);
+  font-weight: 700;
+}
+
+[data-diopanta-page='lesson'] .lesson-toc .toc-link:focus-visible {
+  outline: 2px solid var(--diopanta-blue) !important;
+  outline-offset: 1px;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror {
+  max-width: 78ch;
+  color: #26394d;
+  font-size: 1.075rem;
+  line-height: 1.78;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror p {
+  margin-block: 0 1.15rem;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror h1,
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror h2,
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror h3,
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror h4,
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror h5 {
+  color: var(--diopanta-ink);
+  line-height: 1.3;
+  scroll-margin-block-start: 6rem;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror h1 {
+  margin-block: 0 1.25rem;
+  font-size: clamp(1.9rem, 3vw, 2.4rem);
+  font-weight: 750;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror h2 {
+  margin-block: 2.35rem 1rem;
+  padding-block-end: 0.45rem;
+  border-block-end: 1px solid #d9e6f2;
+  font-size: clamp(1.55rem, 2.3vw, 1.9rem);
+  font-weight: 700;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror h3 {
+  margin-block: 1.8rem 0.75rem;
+  color: #20527f;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror h4,
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror h5 {
+  margin-block: 1.4rem 0.65rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror a {
+  color: var(--diopanta-blue-deep);
+  text-underline-offset: 0.16em;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror a:hover {
+  color: #083765;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror .tableWrapper {
+  max-width: 100%;
+  margin-block: 1.4rem;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror table {
+  min-width: 34rem;
+  border-color: #c9d8e6;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror table th {
+  color: #153d64;
+  background: #eaf3fc;
+  font-weight: 700;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror table td,
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror table th {
+  padding: 0.7rem 0.8rem;
+  border-color: #d2dfeb;
+  line-height: 1.55;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror [data-type='details'] {
+  border: 1px solid var(--diopanta-border);
+  border-inline-start: 3px solid var(--diopanta-green);
+  border-radius: 0.75rem;
+  padding: 1rem 1.15rem;
+  color: var(--diopanta-ink);
+  background: linear-gradient(110deg, var(--diopanta-pale-blue), #f9fcff 72%);
+  box-shadow: 0 2px 8px rgb(19 49 77 / 4%);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror .lesson-disclosure__summary {
+  color: var(--diopanta-green);
+  font-family: inherit;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror .lesson-disclosure__content {
+  color: var(--diopanta-ink);
+  font-family: inherit;
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror [data-type='details'] > button {
+  color: var(--diopanta-blue);
+}
+
+[data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror [data-type='details'] > button:focus-visible {
+  outline-color: var(--diopanta-green) !important;
+}
+
+@media (max-width: 768px) {
+  [data-diopanta-page='catalog'] .diopanta-course-card {
+    border-radius: 0.9rem;
+  }
+
+  [data-diopanta-page='overview'] .diopanta-course-cover {
+    min-height: 0;
+    max-height: none;
+  }
+
+  [data-diopanta-page='lesson'] .canva-content-wrapper .lesson-toc {
+    position: static;
+    max-height: 13rem;
+    margin-block-end: 0.35rem;
+    padding: 0.85rem 0.95rem;
+  }
+
+  [data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror {
+    padding: 0.75rem 0.25rem;
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+
+  [data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror h1 {
+    font-size: 1.8rem;
+  }
+
+  [data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror h2 {
+    margin-block-start: 1.8rem;
+    font-size: 1.5rem;
+  }
+
+  [data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror h3 {
+    font-size: 1.25rem;
+  }
+
+  [data-diopanta-page='lesson'] .canva-content-wrapper .ProseMirror [data-type='details'] {
+    padding: 0.85rem 0.9rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-diopanta-theme='enabled'] .diopanta-course-card,
+  [data-diopanta-theme='enabled'] .diopanta-course-card__cta,
+  [data-diopanta-page='overview'] .diopanta-course-chapter-toggle {
+    transition: none;
+  }
+}

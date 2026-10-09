@@ -155,7 +155,7 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
   const courseLink = customLink ? customLink : getUriWithOrg(orgslug, `/course/${removeCoursePrefix(course.course_uuid)}`)
 
   return (
-    <div onMouseEnter={handleMouseEnter} className={`group relative flex flex-col bg-white rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01] ${isSelected ? 'ring-2 ring-black ring-offset-2' : ''}`}>
+    <div onMouseEnter={handleMouseEnter} className={`diopanta-course-card group relative flex flex-col bg-white rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01] ${isSelected ? 'ring-2 ring-black ring-offset-2' : ''}`}>
       {/* Selection checkbox - visible on hover or when selected (dashboard only) */}
       {isDashboard && onToggleSelect && (
         <button
@@ -183,7 +183,7 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
         isDashboard={isDashboard}
       />
 
-      <Link prefetch={false} href={courseLink} onClick={handleCardOpen} className="block relative aspect-video overflow-hidden bg-gray-50">
+      <Link prefetch={false} href={courseLink} onClick={handleCardOpen} aria-label={course.name} className="diopanta-course-card__cover-link block relative aspect-video overflow-hidden bg-gray-50">
         {/* Hidden img gives the browser a real resource hint so it can fetch the background-image early as an LCP candidate */}
         {isPriority && (
            
@@ -196,8 +196,10 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
           />
         )}
         <div
-          className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-          style={{ backgroundImage: `url(${thumbnailImage})` }}
+          className="diopanta-course-card__cover w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
+          data-empty-cover={course.thumbnail_image ? undefined : 'true'}
+          aria-hidden="true"
+          style={{ backgroundImage: course.thumbnail_image ? `url(${thumbnailImage})` : undefined }}
         />
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
         {isDashboard && (
@@ -221,14 +223,14 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
             prefetch={false}
             href={courseLink}
             onClick={handleCardOpen}
-            className="text-base font-bold text-gray-900 leading-tight hover:text-black transition-colors line-clamp-1"
+            className="diopanta-course-card__title text-base font-bold text-gray-900 leading-tight hover:text-black transition-colors line-clamp-1"
            dir="auto">
             {course.name}
           </Link>
         </div>
         
         {course.description && (
-          <p className="text-[11px] text-gray-500 line-clamp-2 min-h-[1.5rem]">
+          <p className="diopanta-course-card__description text-[11px] text-gray-500 line-clamp-2 min-h-[1.5rem]">
             {course.description}
           </p>
         )}
@@ -275,7 +277,7 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
             prefetch={false}
             href={courseLink}
             onClick={handleCardOpen}
-            className="text-[10px] font-bold text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-wider"
+            className="diopanta-course-card__cta text-[10px] font-bold text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-wider"
           >
             {t('courses.start_learning')}
           </Link>

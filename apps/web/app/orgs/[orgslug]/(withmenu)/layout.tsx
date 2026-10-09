@@ -1,6 +1,7 @@
 'use client';
 import { use, useEffect, type ReactNode } from "react";
 import '@styles/globals.css'
+import '@styles/diopanta-student-theme.css'
 import Watermark from '@components/Objects/Watermark'
 import { SessionGate } from '@components/Contexts/LHSessionContext'
 import { OrgMenu } from '@components/Objects/Menus/OrgMenu'
@@ -16,6 +17,10 @@ import { PageViewTracker } from '@components/Analytics/PageViewTracker'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { usePlan } from '@components/Hooks/usePlan'
 import { getGoogleFontUrl, DEFAULT_FONT } from '@/lib/fonts'
+
+const DIOPANTA_ORG_SLUG = (
+  process.env.NEXT_PUBLIC_DIOPANTA_ORG_SLUG || ''
+).trim().toLowerCase()
 
 // Helper to convert hex to rgba
 const hexToRgba = (hex: string, alpha: number): string => {
@@ -100,6 +105,19 @@ function LayoutContent({ children, orgslug }: { children: ReactNode; orgslug: st
   }, [customFont])
 
   const pathParts = pathname?.split('/').filter(Boolean) || []
+  const isDiopantaOrg = DIOPANTA_ORG_SLUG !== '' && orgslug?.trim().toLowerCase() === DIOPANTA_ORG_SLUG
+  const isDashboardRoute = pathParts.includes('dash')
+  const diopantaPage = isDashboardRoute
+    ? undefined
+    : pathParts.at(-1) === 'courses'
+      ? 'catalog'
+      : pathParts.length === 2
+        ? 'landing'
+        : pathParts.includes('course') && pathParts.includes('activity')
+          ? 'lesson'
+          : pathParts.includes('course')
+            ? 'overview'
+            : undefined
 
   // Pages that use a full-bleed layout (no footer/watermark)
   const noFooterPaths = ['copilot']
@@ -112,6 +130,8 @@ function LayoutContent({ children, orgslug }: { children: ReactNode; orgslug: st
       // outright. An inline style beats any normal rule, so the override has to
       // target this element specifically.
       className="lh-org-font-root flex flex-col min-h-screen"
+      data-diopanta-theme={isDiopantaOrg && diopantaPage ? 'enabled' : undefined}
+      data-diopanta-page={isDiopantaOrg ? diopantaPage : undefined}
       style={{
         backgroundColor: primaryColor ? hexToRgba(primaryColor, 0.05) : 'transparent',
         ...(customFont ? { fontFamily: `'${customFont}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif` } : {}),

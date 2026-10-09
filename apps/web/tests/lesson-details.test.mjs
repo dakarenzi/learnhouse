@@ -171,7 +171,7 @@ describe("shared lesson disclosure schema", () => {
     reopened.destroy();
   });
 
-  test("setDetails wraps selected lesson blocks without converting their text", () => {
+  test("setDetails creates a collapsed section by default without converting selected text", () => {
     const editor = createEditor({
       type: "doc",
       content: [{

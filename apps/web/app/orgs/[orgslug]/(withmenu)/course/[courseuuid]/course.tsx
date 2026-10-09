@@ -339,7 +339,7 @@ const CourseClient = (props: any) => {
       {jsonLd && <JsonLd data={jsonLd} />}
       {!course || !org ? null : (
         <>
-          <GeneralWrapperStyled>
+          <GeneralWrapperStyled className="diopanta-course-overview">
             <div className="pb-4">
               <Breadcrumbs items={[
                 { label: t('courses.courses'), href: getUriWithOrg(orgslug, '/courses'), icon: <BookCopy size={14} /> },
@@ -410,7 +410,9 @@ const CourseClient = (props: any) => {
                     );
                   } else if (showImage && course.thumbnail_image) {
                     return (
-                      <div className="relative inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl w-full h-[200px] md:h-[400px] bg-cover bg-center"
+                      <div className="diopanta-course-cover relative inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl w-full h-[200px] md:h-[400px] bg-cover bg-center"
+                        role="img"
+                        aria-label={course.name}
                         style={{
                           backgroundImage: `url(${getCourseThumbnailMediaDirectory(
                             org?.org_uuid,
@@ -461,12 +463,10 @@ const CourseClient = (props: any) => {
                   } else {
                     return (
                       <div
-                        className="inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl relative w-full h-[400px] bg-cover bg-center"
-                        style={{
-                          backgroundImage: `url('/empty_thumbnail.png')`,
-                          backgroundSize: 'auto',
-                        }}
-                      ></div>
+                        className="diopanta-course-cover diopanta-course-cover--empty inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl relative w-full h-[400px] bg-cover bg-center"
+                        role="img"
+                        aria-label={course.name}
+                      />
                     );
                   }
                 })()}
@@ -518,7 +518,7 @@ const CourseClient = (props: any) => {
               return (
                 <div className="w-full">
                   <h2 className="py-5 text-xl md:text-2xl font-bold">{t('courses.what_you_will_learn')}</h2>
-                  <div className="bg-white shadow-md shadow-gray-300/25 outline outline-1 outline-neutral-200/40 rounded-lg overflow-hidden px-5 py-5 space-y-2">
+                  <div className="diopanta-learning-objectives bg-white shadow-md shadow-gray-300/25 outline outline-1 outline-neutral-200/40 rounded-lg overflow-hidden px-5 py-5 space-y-2">
                     {displayLearnings.map((learning: any) => {
                       const learningText = typeof learning === 'string' ? learning : learning.text
                       const learningEmoji = typeof learning === 'string' ? null : learning.emoji
@@ -532,7 +532,7 @@ const CourseClient = (props: any) => {
                             {learningEmoji ? (
                               <span>{learningEmoji}</span>
                             ) : (
-                              <Check className="text-gray-400" size={15} />
+                              <Check className="diopanta-learning-check text-gray-400" size={15} />
                             )}
                           </div>
                           <p>{learningText}</p>
@@ -561,47 +561,50 @@ const CourseClient = (props: any) => {
                 {(course.chapters ?? []).map((chapter: any, idx: number) => {
                   const isExpanded = expandedChapters[chapter.chapter_uuid] ?? (idx === 0); // Default to expanded for first chapter
                   return (
-                    <div key={chapter.chapter_uuid || `chapter-${chapter.name}`} className="">
-                      <div 
-                        className="flex items-start py-4 px-4 outline outline-1 outline-neutral-200/40 font-bold bg-neutral-50 text-neutral-600 cursor-pointer hover:bg-neutral-100 transition-colors"
-                        onClick={() => setExpandedChapters(prev => ({
-                          ...prev,
-                          [chapter.chapter_uuid]: !isExpanded
-                        }))}
-                      >
-                        {/* Chevron on the far left, vertically centered with the title */}
-                        <div className="flex flex-col justify-center me-3 pt-1">
-                          <svg 
-                            className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </div>
-                        {/* Title and badge column */}
-                        <div className="flex flex-col items-start w-full">
-                          <div className="flex items-center flex-wrap mb-1 w-full min-w-0">
-                            {/* Numbered badge */}
-                            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 text-xs font-semibold me-2 border border-neutral-300 flex-shrink-0">
-                              {idx + 1}
+                    <div key={chapter.chapter_uuid || `chapter-${chapter.name}`} className="diopanta-course-chapter">
+                      <h3 className="m-0 w-full">
+                        <button
+                          type="button"
+                          aria-expanded={isExpanded}
+                          aria-controls={`course-chapter-panel-${idx}`}
+                          className="diopanta-course-chapter-toggle flex items-start py-4 px-4 outline outline-1 outline-neutral-200/40 font-bold bg-neutral-50 text-neutral-600 cursor-pointer hover:bg-neutral-100 transition-colors w-full text-start"
+                          onClick={() => setExpandedChapters(prev => ({
+                            ...prev,
+                            [chapter.chapter_uuid]: !isExpanded
+                          }))}
+                        >
+                          <span className="flex flex-col justify-center me-3 pt-1 shrink-0">
+                            <svg
+                              aria-hidden="true"
+                              className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </span>
+                          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 text-xs font-semibold me-2 border border-neutral-300 flex-shrink-0">
+                            {idx + 1}
+                          </span>
+                          <span className="flex flex-col items-start w-full min-w-0">
+                            <span className="flex items-center flex-wrap mb-1 w-full min-w-0">
+                              <span className="diopanta-course-chapter-name text-lg font-bold leading-tight truncate min-w-0 sm:text-base md:text-lg" style={{ lineHeight: '1.2' }}>{chapter.name}</span>
+                              {chapter.is_locked && (
+                                <span className="ms-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-600 text-[10px] font-semibold">
+                                  <Lock size={10} />
+                                  {t('course.locked', 'Locked')}
+                                </span>
+                              )}
                             </span>
-                            <h3 className="text-lg font-bold leading-tight truncate min-w-0 sm:text-base md:text-lg" style={{lineHeight: '1.2'}}>{chapter.name}</h3>
-                            {chapter.is_locked && (
-                              <span className="ms-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-600 text-[10px] font-semibold">
-                                <Lock size={10} />
-                                {t('course.locked', 'Locked')}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center space-x-1 text-sm text-neutral-400 font-normal">
-                            <Layers size={16} className="me-1" />
-                            <span>{chapter.activities.length} {t('activities.activities')}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className={`transition-all duration-200 ${isExpanded ? 'block' : 'hidden'}`}>
+                            <span className="flex items-center space-x-1 text-sm text-neutral-400 font-normal">
+                              <Layers size={16} className="me-1" />
+                              <span>{chapter.activities.length} {t('activities.activities')}</span>
+                            </span>
+                          </span>
+                        </button>
+                      </h3>
+                      <div id={`course-chapter-panel-${idx}`} className={`diopanta-course-chapter-panel transition-all duration-200 ${isExpanded ? 'block' : 'hidden'}`}>
                         <div className="">
                           {chapter.activities.map((activity: any) => {
                             const locked = !!activity.is_locked
