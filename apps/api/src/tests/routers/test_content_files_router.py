@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from src.core.events.database import get_db_session
+from src.db.courses.activities import Activity, ActivitySubTypeEnum, ActivityTypeEnum
 from src.db.courses.courses import Course
 from src.db.podcasts.podcasts import Podcast
 from src.db.users import APITokenUser, AnonymousUser, PublicUser
@@ -115,7 +116,7 @@ class TestContentFilesRouter:
             assert content_files._validate_content_path("safe.txt") is None
 
     async def test_check_content_access_course_and_podcast_branches(
-        self, db, org, admin_user
+        self, db, org, admin_user, mock_request
     ):
         private_course = Course(
             id=31,
@@ -165,6 +166,20 @@ class TestContentFilesRouter:
         )
         db.add(private_course)
         db.add(public_course)
+        db.add(Activity(
+            name="Private activity", activity_type=ActivityTypeEnum.TYPE_DOCUMENT,
+            activity_sub_type=ActivitySubTypeEnum.SUBTYPE_DOCUMENT_PDF, content={},
+            published=True, org_id=org.id, course_id=private_course.id,
+            activity_uuid="activity_private_access", creation_date="2024-01-01",
+            update_date="2024-01-01",
+        ))
+        db.add(Activity(
+            name="Public activity", activity_type=ActivityTypeEnum.TYPE_DOCUMENT,
+            activity_sub_type=ActivitySubTypeEnum.SUBTYPE_DOCUMENT_PDF, content={},
+            published=True, org_id=org.id, course_id=public_course.id,
+            activity_uuid="activity_public_access", creation_date="2024-01-01",
+            update_date="2024-01-01",
+        ))
         db.add(private_podcast)
         db.add(public_podcast)
         await db.commit()
@@ -183,49 +198,58 @@ class TestContentFilesRouter:
                 "orgs/%s/courses/missing/activities/a/video.mp4" % org.org_uuid,
                 admin_user,
                 db,
+                request=mock_request,
             )
         assert not_found.value.status_code == 403
 
         await content_files._check_content_access(
-            f"orgs/{org.org_uuid}/courses/{public_course.course_uuid}/activities/a/video.mp4",
+            f"orgs/{org.org_uuid}/courses/{public_course.course_uuid}/activities/activity_public_access/video.mp4",
             AnonymousUser(),
             db,
+            request=mock_request,
         )
 
         with pytest.raises(Exception) as anon_private_course:
             await content_files._check_content_access(
-                f"orgs/{org.org_uuid}/courses/{private_course.course_uuid}/activities/a/video.mp4",
+                f"orgs/{org.org_uuid}/courses/{private_course.course_uuid}/activities/activity_private_access/video.mp4",
                 AnonymousUser(),
                 db,
+                request=mock_request,
             )
         assert anon_private_course.value.status_code == 401
 
         with pytest.raises(Exception) as wrong_org_token:
             await content_files._check_content_access(
-                f"orgs/{org.org_uuid}/courses/{private_course.course_uuid}/activities/a/video.mp4",
+                f"orgs/{org.org_uuid}/courses/{private_course.course_uuid}/activities/activity_private_access/video.mp4",
                 APITokenUser(org_id=org.id + 1),
                 db,
+                request=mock_request,
             )
         assert wrong_org_token.value.status_code == 403
 
-        await content_files._check_content_access(
-            f"orgs/{org.org_uuid}/courses/{private_course.course_uuid}/activities/a/video.mp4",
-            APITokenUser(org_id=org.id),
-            db,
-        )
+        with pytest.raises(Exception) as token_without_read_right:
+            await content_files._check_content_access(
+                f"orgs/{org.org_uuid}/courses/{private_course.course_uuid}/activities/activity_private_access/video.mp4",
+                APITokenUser(org_id=org.id),
+                db,
+                request=mock_request,
+            )
+        assert token_without_read_right.value.status_code == 403
 
         with pytest.raises(Exception) as no_membership_course:
             await content_files._check_content_access(
-                f"orgs/{org.org_uuid}/courses/{private_course.course_uuid}/activities/a/video.mp4",
+                f"orgs/{org.org_uuid}/courses/{private_course.course_uuid}/activities/activity_private_access/video.mp4",
                 outsider,
                 db,
+                request=mock_request,
             )
         assert no_membership_course.value.status_code == 403
 
         await content_files._check_content_access(
-            f"orgs/{org.org_uuid}/courses/{private_course.course_uuid}/activities/a/video.mp4",
+            f"orgs/{org.org_uuid}/courses/{private_course.course_uuid}/activities/activity_private_access/video.mp4",
             admin_user,
             db,
+            request=mock_request,
         )
 
         await content_files._check_content_access(
@@ -476,6 +500,13 @@ class TestContentFilesRouter:
             update_date="2024-01-01",
         )
         db.add(course)
+        db.add(Activity(
+            name="Private S3 activity", activity_type=ActivityTypeEnum.TYPE_DOCUMENT,
+            activity_sub_type=ActivitySubTypeEnum.SUBTYPE_DOCUMENT_PDF, content={},
+            published=True, org_id=org.id, course_id=course.id,
+            activity_uuid="activity_private_s3", creation_date="2024-01-01",
+            update_date="2024-01-01",
+        ))
         await db.commit()
 
         from src.routers import content_files
@@ -484,7 +515,7 @@ class TestContentFilesRouter:
             mp.setattr(content_files, "get_s3_bucket_name", lambda: "bucket")
             app.dependency_overrides[get_current_user] = lambda: AnonymousUser()
             anon_response = await client.get(
-                f"/content/orgs/{org.org_uuid}/courses/{course.course_uuid}/activities/activity_x/video.mp4"
+                f"/content/orgs/{org.org_uuid}/courses/{course.course_uuid}/activities/activity_private_s3/video.mp4"
             )
 
             app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)

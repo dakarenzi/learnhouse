@@ -22,7 +22,6 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.core.events.database import get_db_session
-from src.db.courses.courses import Course
 from src.db.podcasts.podcasts import Podcast
 from src.db.users import AnonymousUser, PublicUser, APITokenUser
 from src.db.user_organizations import UserOrganization
@@ -31,6 +30,12 @@ from src.security.submission_file_access import (
     is_submission_file,
     enforce_submission_file_access,
 )
+from src.security.assessment_solution_access import (
+    enforce_assignment_solution_file_access,
+    is_assignment_solution_file,
+    is_assignment_solution_path,
+)
+from src.security.course_media_access import enforce_course_activity_media_access
 
 router = APIRouter()
 
@@ -83,6 +88,17 @@ async def _check_content_access(
         await enforce_submission_file_access(parts, current_user, db_session, request)
         return
 
+    # Assignment model answers have their own reveal policy. Never let an
+    # unmatched key under the solution directory fall through to course media.
+    if is_assignment_solution_path(parts):
+        if not is_assignment_solution_file(parts):
+            raise HTTPException(status_code=403, detail="Access denied")
+        await enforce_course_activity_media_access(parts, current_user, db_session, request)
+        await enforce_assignment_solution_file_access(
+            parts, current_user, db_session, request
+        )
+        return
+
     # Activity content: requires course to be public or user to be org member
     if (
         len(parts) >= 6
@@ -90,30 +106,7 @@ async def _check_content_access(
         and parts[2] == 'courses'
         and parts[4] == 'activities'
     ):
-        course_uuid = parts[3]
-        course = (await db_session.execute(
-            select(Course).where(Course.course_uuid == course_uuid)
-        )).scalars().first()
-        if not course:
-            raise HTTPException(status_code=403, detail="Access denied")
-        if course.public:
-            return  # Public course — allow anonymous
-        if isinstance(current_user, AnonymousUser):
-            raise HTTPException(status_code=401, detail="Authentication required")
-        # Verify API token is scoped to the correct org
-        if isinstance(current_user, APITokenUser):
-            if current_user.org_id != course.org_id:
-                raise HTTPException(status_code=403, detail="Access denied")
-            return
-        # Verify user belongs to the org that owns this course
-        membership = (await db_session.execute(
-            select(UserOrganization).where(
-                UserOrganization.user_id == current_user.id,
-                UserOrganization.org_id == course.org_id,
-            )
-        )).scalars().first()
-        if not membership:
-            raise HTTPException(status_code=403, detail="Access denied")
+        await enforce_course_activity_media_access(parts, current_user, db_session, request)
         return
 
     # Podcast episode content: requires podcast to be public or user to be org member
@@ -264,7 +257,7 @@ async def serve_local_content(
         path=safe_real,
         media_type=media_type,
         headers={
-            "Cache-Control": "public, max-age=86400",
+            "Cache-Control": "private, no-store",
             "X-Content-Type-Options": "nosniff",
         },
     )
@@ -320,7 +313,7 @@ async def head_local_content(
             "Accept-Ranges": "bytes",
             "Content-Length": str(file_size),
             "Content-Type": media_type,
-            "Cache-Control": "public, max-age=86400",
+            "Cache-Control": "private, no-store",
             "X-Content-Type-Options": "nosniff",
         },
     )

@@ -24,6 +24,7 @@ from config.config import LearnHouseConfig, get_learnhouse_config
 from src.core.ee_hooks import register_ee_middlewares
 from src.core.events.events import shutdown_app, startup_app
 from src.core.middleware.cors import configure_cors
+from src.core.middleware.content_cache import ContentNoStoreMiddleware
 from src.router import v1_router
 from src.routers.content_files import router as content_files_router
 from src.routers.local_content import router as local_content_router
@@ -152,6 +153,7 @@ configure_cors(app)
 # compresslevel 9 costs several times the CPU of 6 for a couple of percent on
 # JSON; 6 is gzip's own default.
 app.add_middleware(SelectiveGZipMiddleware, minimum_size=1000, compresslevel=6)
+app.add_middleware(ContentNoStoreMiddleware)
 register_ee_middlewares(app)
 
 # Content delivery — S3-aware router when S3 is enabled, local otherwise.
