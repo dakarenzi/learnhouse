@@ -2,6 +2,9 @@ const { withSentryConfig } = require("@sentry/nextjs");
 
 /** @type {import('common.next').NextConfig} */
 const nextConfig = {
+  // LearnHouse is served on this development hostname; Next.js otherwise
+  // blocks dev chunks and HMR when the Host header is app.lvh.me.
+  allowedDevOrigins: ["app.lvh.me"],
   // Required by PostHog's reverse-proxy rewrites below so the trailing-slash
   // handling on /ingest/* doesn't 308-redirect ingestion requests.
   skipTrailingSlashRedirect: true,
