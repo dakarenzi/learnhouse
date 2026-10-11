@@ -355,12 +355,14 @@ class TestLoadCourseExportData:
 
         first_chapter, first_activities = chapters[0]
         assert first_chapter["chapter_uuid"] == "chapter_test"
+        assert first_chapter["lock_type"] == "public"
         assert first_chapter["_id"] == chapter.id
         assert len(first_activities) == 2
 
         activity_dict, blocks = first_activities[0]
         assert activity_dict["activity_uuid"] == "activity_test"
         assert activity_dict["activity_type"] == ActivityTypeEnum.TYPE_DYNAMIC.value
+        assert activity_dict["lock_type"] == "public"
         assert blocks == []
 
         second_activity_dict, second_blocks = first_activities[1]
@@ -418,6 +420,7 @@ class TestBuildExportZip:
                             "name": "Chapter 1",
                             "description": "Chapter 1 description",
                             "thumbnail_image": "chapter-1.png",
+                            "lock_type": "authenticated",
                             "order": 1,
                             "creation_date": "2024-01-01",
                             "update_date": "2024-01-01",
@@ -433,6 +436,7 @@ class TestBuildExportZip:
                                     "content": {"nested": {"value": 1}},
                                     "details": {"nested": {"value": 2}},
                                     "published": True,
+                                    "lock_type": "restricted",
                                     "order": 1,
                                     "creation_date": "2024-01-01",
                                     "update_date": "2024-01-01",
@@ -457,6 +461,7 @@ class TestBuildExportZip:
                                     "content": {"type": "video"},
                                     "details": None,
                                     "published": False,
+                                    "lock_type": "public",
                                     "order": 2,
                                     "creation_date": "2024-01-02",
                                     "update_date": "2024-01-02",
@@ -518,6 +523,11 @@ class TestBuildExportZip:
             assert "courses/course-1/chapters/chapter-1/activities/activity-1/files/video.mp4" in names
             assert "courses/course-1/chapters/chapter-1/activities/activity-1/files/doc.txt" in names
             assert "courses/course-1/chapters/chapter-1/activities/activity-1/blocks/block-1/block.json" in names
+
+            exported_chapter = json.loads(zf.read("courses/course-1/chapters/chapter-1/chapter.json"))
+            exported_activity = json.loads(zf.read("courses/course-1/chapters/chapter-1/activities/activity-1/activity.json"))
+            assert exported_chapter["lock_type"] == "authenticated"
+            assert exported_activity["lock_type"] == "restricted"
 
             thumb_jpg = zf.getinfo("courses/course-1/thumbnails/thumb.jpg")
             thumb_txt = zf.getinfo("courses/course-1/thumbnails/thumb.txt")

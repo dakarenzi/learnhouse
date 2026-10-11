@@ -26,6 +26,7 @@ from src.services.courses.transfer.import_service import (
     _import_chapter,
     _import_single_course,
     _safe_manifest_join,
+    _validate_course_lock_fields,
     analyze_import_package,
     cleanup_old_temp_imports,
     import_courses,
@@ -60,6 +61,40 @@ def _set_import_temp_dir(monkeypatch, tmp_path):
 
 
 class TestImportHelpers:
+    @pytest.mark.parametrize(
+        "chapter_lock, activity_lock, should_pass",
+        [
+            ("public", "public", True),
+            ("authenticated", "restricted", True),
+            (None, "public", False),
+            ("public", None, False),
+            ("open", "public", False),
+            ("public", "open", False),
+        ],
+    )
+    def test_native_import_requires_explicit_schema_valid_child_locks(
+        self, tmp_path, chapter_lock, activity_lock, should_pass
+    ):
+        chapter_dir = tmp_path / "chapters" / "chapter-a"
+        activity_dir = chapter_dir / "activities" / "activity-a"
+        activity_dir.mkdir(parents=True)
+        chapter_data = {"name": "Chapter"}
+        activity_data = {"name": "Activity"}
+        if chapter_lock is not None:
+            chapter_data["lock_type"] = chapter_lock
+        if activity_lock is not None:
+            activity_data["lock_type"] = activity_lock
+        (chapter_dir / "chapter.json").write_text(json.dumps(chapter_data))
+        (activity_dir / "activity.json").write_text(json.dumps(activity_data))
+
+        if should_pass:
+            _validate_course_lock_fields(str(tmp_path))
+        else:
+            with pytest.raises(HTTPException) as exc:
+                _validate_course_lock_fields(str(tmp_path))
+            assert exc.value.status_code == 400
+            assert "must set lock_type" in exc.value.detail
+
     def test_validate_zip_and_sanitize_path(self):
         assert validate_zip(b"PK\x03\x04hello")
         assert not validate_zip(b"nope")
@@ -832,6 +867,7 @@ class TestImportHelpers:
                         "name": "A",
                         "activity_type": "TYPE_DYNAMIC",
                         "activity_sub_type": "SUBTYPE_DYNAMIC_PAGE",
+                        "lock_type": "public",
                     },
                     new_course=SimpleNamespace(id=1),
                     new_chapter=SimpleNamespace(id=1),
@@ -993,8 +1029,8 @@ class TestImportHelpers:
         (chapters_dir / "chapter-b").mkdir(parents=True)
         (chapters_dir / "chapter-a").mkdir(parents=True)
         (course_path / "course.json").write_text(json.dumps({"name": "Order Test"}))
-        (chapters_dir / "chapter-b" / "chapter.json").write_text(json.dumps({"name": "B", "order": 2}))
-        (chapters_dir / "chapter-a" / "chapter.json").write_text(json.dumps({"name": "A", "order": 1}))
+        (chapters_dir / "chapter-b" / "chapter.json").write_text(json.dumps({"name": "B", "order": 2, "lock_type": "public"}))
+        (chapters_dir / "chapter-a" / "chapter.json").write_text(json.dumps({"name": "A", "order": 1, "lock_type": "public"}))
 
         chapter_calls = []
 
@@ -1030,8 +1066,8 @@ class TestImportHelpers:
         activities_dir = chapter_path / "activities"
         (activities_dir / "activity-b").mkdir(parents=True)
         (activities_dir / "activity-a").mkdir(parents=True)
-        (activities_dir / "activity-b" / "activity.json").write_text(json.dumps({"order": 2, "name": "B"}))
-        (activities_dir / "activity-a" / "activity.json").write_text(json.dumps({"order": 1, "name": "A"}))
+        (activities_dir / "activity-b" / "activity.json").write_text(json.dumps({"order": 2, "name": "B", "lock_type": "public"}))
+        (activities_dir / "activity-a" / "activity.json").write_text(json.dumps({"order": 1, "name": "A", "lock_type": "public"}))
 
         new_course = SimpleNamespace(id=course.id)
         new_course_path = "content/orgs/org_test/courses/course_new"
@@ -1047,7 +1083,7 @@ class TestImportHelpers:
         ):
             chapter = await _import_chapter(
                 chapter_path=str(chapter_path),
-                chapter_data={"name": "Chapter", "order": 2},
+                chapter_data={"name": "Chapter", "order": 2, "lock_type": "authenticated"},
                 new_course=new_course,
                 new_course_path=new_course_path,
                 organization=org,
@@ -1055,6 +1091,7 @@ class TestImportHelpers:
             )
 
         assert chapter.name == "Chapter"
+        assert chapter.lock_type.value == "authenticated"
         assert activity_calls == ["A", "B"]
 
     @pytest.mark.asyncio
@@ -1117,6 +1154,7 @@ class TestImportHelpers:
                     },
                     "details": {"note": "keep"},
                     "published": False,
+                    "lock_type": "restricted",
                     "order": 1,
                 },
                 new_course=new_course,
@@ -1128,6 +1166,7 @@ class TestImportHelpers:
 
         assert activity.activity_type == ActivityTypeEnum.TYPE_DYNAMIC
         assert activity.activity_sub_type is None
+        assert activity.lock_type.value == "restricted"
         assert activity.content == {
             "block": "block-new",
             "file_id": "file-new",
@@ -1191,6 +1230,7 @@ class TestImportHelpers:
                     },
                     "details": {"note": "keep"},
                     "published": False,
+                    "lock_type": "public",
                     "order": 1,
                 },
                 new_course=SimpleNamespace(id=course.id),
@@ -1205,6 +1245,7 @@ class TestImportHelpers:
             "file_id": "old-file",
             "activity_uuid": "old-activity",
         }
+        assert activity.lock_type.value == "public"
         assert (tmp_path / "content/orgs/org_test/courses/course_new/activities").exists()
 
     @pytest.mark.asyncio

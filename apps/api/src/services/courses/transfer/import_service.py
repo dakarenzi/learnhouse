@@ -18,10 +18,10 @@ from fastapi import HTTPException, Request, UploadFile
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from src.db.courses.activities import Activity, ActivityTypeEnum, ActivitySubTypeEnum
+from src.db.courses.activities import Activity, ActivityLockType, ActivityTypeEnum, ActivitySubTypeEnum
 from src.db.courses.blocks import Block, BlockTypeEnum
 from src.db.courses.chapter_activities import ChapterActivity
-from src.db.courses.chapters import Chapter
+from src.db.courses.chapters import Chapter, LockType
 from src.db.courses.course_chapters import CourseChapter
 from src.db.courses.courses import Course, ThumbnailType
 from src.db.organizations import Organization
@@ -81,6 +81,50 @@ IMPORTABLE_EXTENSIONS = frozenset(MIME_TO_SAFE_EXT.values()) | {
     'jpeg', 'ico', 'mov', 'avi', 'mkv', 'aac', 'flac',
     'm3u8', 'ts', 'vtt', 'srt', 'txt', 'json',
 }
+
+_NATIVE_LOCK_TYPES = frozenset(lock_type.value for lock_type in LockType)
+
+
+def _validate_course_lock_fields(course_path: str) -> None:
+    """Require explicit, schema-valid lock values for every imported child."""
+    chapters_dir = os.path.join(course_path, "chapters")
+    if not os.path.isdir(chapters_dir):
+        return
+
+    for chapter_dir_name in os.listdir(chapters_dir):
+        chapter_dir = os.path.join(chapters_dir, chapter_dir_name)
+        if not os.path.isdir(chapter_dir):
+            continue
+        chapter_json_path = os.path.join(chapter_dir, "chapter.json")
+        if not os.path.isfile(chapter_json_path):
+            continue
+        with open(chapter_json_path, "r", encoding="utf-8") as f:
+            chapter_data = json.load(f)
+        chapter_lock_type = chapter_data.get("lock_type") if isinstance(chapter_data, dict) else None
+        if not isinstance(chapter_lock_type, str) or chapter_lock_type not in _NATIVE_LOCK_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid native access policy: chapter '{chapter_dir_name}' must set lock_type to public, authenticated, or restricted",
+            )
+
+        activities_dir = os.path.join(chapter_dir, "activities")
+        if not os.path.isdir(activities_dir):
+            continue
+        for activity_dir_name in os.listdir(activities_dir):
+            activity_dir = os.path.join(activities_dir, activity_dir_name)
+            if not os.path.isdir(activity_dir):
+                continue
+            activity_json_path = os.path.join(activity_dir, "activity.json")
+            if not os.path.isfile(activity_json_path):
+                continue
+            with open(activity_json_path, "r", encoding="utf-8") as f:
+                activity_data = json.load(f)
+            activity_lock_type = activity_data.get("lock_type") if isinstance(activity_data, dict) else None
+            if not isinstance(activity_lock_type, str) or activity_lock_type not in _NATIVE_LOCK_TYPES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid native access policy: activity '{activity_dir_name}' must set lock_type to public, authenticated, or restricted",
+                )
 
 
 def _require_temp_id(temp_id: str) -> None:
@@ -366,6 +410,11 @@ async def analyze_import_package(
             with open(course_json_path, 'r', encoding="utf-8") as f:
                 course_data = json.load(f)
 
+            # Refuse packages that would fall through the DB's permissive
+            # PUBLIC child-lock defaults. The parent course remains subject
+            # to the separate private/unpublished import options below.
+            _validate_course_lock_fields(course_path)
+
             # Count chapters and activities
             chapters_count = 0
             activities_count = 0
@@ -593,6 +642,10 @@ async def _import_single_course(
     with open(os.path.join(course_path, "course.json"), 'r', encoding="utf-8") as f:
         course_data = json.load(f)
 
+    # Revalidate at import time as the analyzed temp package is client-addressed
+    # and must never rely on a prior analysis snapshot for its access contract.
+    _validate_course_lock_fields(course_path)
+
     # Apply name prefix if specified
     course_name = course_data.get("name", "Untitled Course")
     if options.name_prefix:
@@ -730,6 +783,7 @@ async def _import_chapter(
         chapter_uuid=new_chapter_uuid,
         org_id=organization.id,
         course_id=new_course.id,
+        lock_type=LockType(chapter_data["lock_type"]),
         creation_date=str(datetime.now()),
         update_date=str(datetime.now()),
         extra_metadata=chapter_data.get("extra_metadata"),
@@ -820,6 +874,7 @@ async def _import_activity(
         content=new_content,
         details=new_details,
         published=activity_data.get("published", True),
+        lock_type=ActivityLockType(activity_data["lock_type"]),
         org_id=organization.id,
         course_id=new_course.id,
         activity_uuid=new_activity_uuid,
