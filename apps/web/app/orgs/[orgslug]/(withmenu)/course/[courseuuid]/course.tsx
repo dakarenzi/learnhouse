@@ -43,11 +43,17 @@ const CourseClient = (props: any) => {
   const isMobile = useMediaQuery('(max-width: 768px)')
   const session = useLHSession() as any;
   const access_token = session?.data?.tokens?.access_token;
+  const userScope = session?.data?.user?.user_uuid ?? 'anonymous'
   const queryClient = useQueryClient()
 
   const { data: clientCourseData, error: courseError, isLoading: courseLoading } = useQuery({
-    queryKey: queryKeys.courses.meta(courseuuid),
-    queryFn: () => getCourseMetadata(courseuuid, {}, access_token, { slim: true }),
+    queryKey: queryKeys.courses.metaWithUnpublished(courseuuid.replace('course_', ''), userScope),
+    queryFn: () => getCourseMetadata(
+      courseuuid.replace('course_', ''),
+      {},
+      access_token,
+      { slim: true, withUnpublishedActivities: true }
+    ),
     enabled: !!courseuuid && !serverError,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -294,7 +300,7 @@ const CourseClient = (props: any) => {
     if (!activity?.activity_uuid) return
     const cleanUuid = activity.activity_uuid.replace('activity_', '')
     queryClient.prefetchQuery({
-      queryKey: queryKeys.activity.detail(cleanUuid),
+      queryKey: queryKeys.activity.detailForUser(cleanUuid, userScope),
       queryFn: () => getActivityWithAuthHeader(cleanUuid, {}, access_token),
       staleTime: 60_000,
     })

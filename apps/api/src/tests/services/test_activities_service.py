@@ -124,6 +124,10 @@ class TestGetEditorBootstrap:
             "src.services.courses.activities.activities.check_resource_access",
             new_callable=AsyncMock,
         ), patch(
+            "src.services.courses.activities.activities.enforce_course_lesson_access",
+            new_callable=AsyncMock,
+            return_value=(False, False),
+        ), patch(
             "src.services.courses.activities.activities.check_ee_activity_paid_access",
             new_callable=AsyncMock,
             return_value=False,
@@ -139,6 +143,36 @@ class TestGetEditorBootstrap:
             )
 
         assert result.activity.content == {"paid_access": False}
+
+    @pytest.mark.asyncio
+    async def test_editor_preview_keeps_content_without_student_entitlement(
+        self, mock_request, db, org, course, chapter, activity, admin_user
+    ):
+        fake_org_read = MagicMock(spec=OrganizationRead)
+        with patch(
+            "src.services.courses.activities.activities.check_resource_access",
+            new_callable=AsyncMock,
+        ), patch(
+            "src.services.courses.activities.activities.enforce_course_lesson_access",
+            new_callable=AsyncMock,
+            return_value=(True, False),
+        ), patch(
+            "src.services.courses.activities.activities.check_ee_activity_paid_access",
+            new_callable=AsyncMock,
+            return_value=False,
+        ) as paid_check, patch(
+            "src.services.courses.activities.activities._apply_activity_lock",
+            new_callable=AsyncMock,
+        ), patch(
+            "src.services.orgs.orgs._build_org_read_with_resolved",
+            return_value=fake_org_read,
+        ):
+            result = await get_editor_bootstrap(
+                mock_request, activity.activity_uuid, admin_user, db
+            )
+
+        assert result.activity.content == activity.content
+        paid_check.assert_not_awaited()
 
 
 class TestGetActivity:
@@ -182,6 +216,32 @@ class TestGetActivity:
 
         assert isinstance(result, ActivityRead)
         assert result.name == activity.name
+
+    @pytest.mark.asyncio
+    async def test_author_preview_keeps_content_without_student_entitlement(
+        self, mock_request, db, org, course, chapter, activity, admin_user
+    ):
+        with patch(
+            "src.services.courses.activities.activities.check_resource_access",
+            new_callable=AsyncMock,
+        ), patch(
+            "src.services.courses.activities.activities.enforce_course_lesson_access",
+            new_callable=AsyncMock,
+            return_value=(True, False),
+        ), patch(
+            "src.services.courses.activities.activities.check_ee_activity_paid_access",
+            new_callable=AsyncMock,
+            return_value=False,
+        ) as paid_check, patch(
+            "src.services.courses.activities.activities._apply_activity_lock",
+            new_callable=AsyncMock,
+        ):
+            result = await get_activity(
+                mock_request, activity.activity_uuid, admin_user, db
+            )
+
+        assert result.content == activity.content
+        paid_check.assert_not_awaited()
 
 
 class TestUpdateActivity:

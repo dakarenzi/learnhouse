@@ -139,10 +139,15 @@ async def get_activity(
 
     # RBAC check
     await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.READ)
-    await enforce_course_lesson_access(course, current_user, db_session, request)
+    is_preview, _ = await enforce_course_lesson_access(
+        course, current_user, db_session, request
+    )
 
     # Paid access check (via EE hook with fallback to True if EE not available)
-    has_paid_access = await check_ee_activity_paid_access(
+    # Authors/admins may inspect the saved lesson during private preview. Paid
+    # student entitlements apply to learners, not to the course's verified
+    # preview principals.
+    has_paid_access = is_preview or await check_ee_activity_paid_access(
         request=request,
         activity_id=activity.id,
         user=current_user,
@@ -210,9 +215,11 @@ async def get_editor_bootstrap(
     await check_resource_access(
         request, db_session, current_user, course.course_uuid, AccessAction.READ
     )
-    await enforce_course_lesson_access(course, current_user, db_session, request)
+    is_preview, _ = await enforce_course_lesson_access(
+        course, current_user, db_session, request
+    )
 
-    has_paid_access = await check_ee_activity_paid_access(
+    has_paid_access = is_preview or await check_ee_activity_paid_access(
         request=request,
         activity_id=activity.id,
         user=current_user,

@@ -14,12 +14,15 @@ export const queryKeys = {
     list: (orgSlug: string) => ['courses', orgSlug] as const,
     detail: (uuid: string) => ['course', uuid] as const,
     meta: (uuid: string) => ['course', uuid, 'meta'] as const,
+    metaWithUnpublished: (uuid: string, userScope: string) =>
+      ['course', uuid, 'meta', 'withUnpublished', userScope] as const,
     contributors: (uuid: string) => ['course', uuid, 'contributors'] as const,
     updates: (uuid: string) => ['course', uuid, 'updates'] as const,
     rights: (uuid: string) => ['course', uuid, 'rights'] as const,
   },
   activity: {
     detail: (uuid: string) => ['activity', uuid] as const,
+    detailForUser: (uuid: string, userScope: string) => ['activity', uuid, userScope] as const,
     editorBootstrap: (uuid: string) => ['activity', uuid, 'editor-bootstrap'] as const,
     versions: (uuid: string) => ['activity', uuid, 'versions'] as const,
     state: (uuid: string) => ['activity', uuid, 'state'] as const,
