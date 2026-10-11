@@ -5,6 +5,24 @@ import { NodeViewWrapper } from '@tiptap/react'
 import { useEditorProvider } from '@components/Contexts/Editor/EditorContext'
 import { renderInlineMath } from './renderInlineMath'
 
+export function EscapedInlineMathFallback({
+  math,
+  sourceOpen,
+  sourceClose,
+}: {
+  math: string
+  sourceOpen: string
+  sourceClose: string
+}) {
+  return (
+    <code className="inline-math__fallback">
+      {sourceOpen}
+      {math}
+      {sourceClose}
+    </code>
+  )
+}
+
 function InlineMathComponent(props: any) {
   const math = String(props.node.attrs.math_equation ?? '')
   const sourceOpen = String(props.node.attrs.source_open ?? '\\(')
@@ -13,6 +31,7 @@ function InlineMathComponent(props: any) {
   const isEditable = editorOptions?.isEditable === true
   const [isEditing, setIsEditing] = useState(false)
   const [draft, setDraft] = useState(math)
+  const editSessionActive = React.useRef(false)
 
   useEffect(() => {
     void import('katex/dist/katex.min.css')
@@ -23,9 +42,23 @@ function InlineMathComponent(props: any) {
   }, [math])
 
   const renderedMath = renderInlineMath(math)
-  const commit = () => {
-    props.updateAttributes({ math_equation: draft })
+  const finishEdit = (save: boolean) => {
+    // Enter commits and unmounts the input, which also fires blur. Track the
+    // edit session so that blur cannot commit twice or undo an Escape cancel.
+    if (!editSessionActive.current) return
+    editSessionActive.current = false
+    if (save) {
+      props.updateAttributes({ math_equation: draft })
+    } else {
+      setDraft(math)
+    }
     setIsEditing(false)
+  }
+
+  const beginEdit = () => {
+    editSessionActive.current = true
+    setDraft(math)
+    setIsEditing(true)
   }
 
   if (isEditable && isEditing) {
@@ -41,17 +74,17 @@ function InlineMathComponent(props: any) {
           aria-label="Inline formula TeX source"
           className="inline-math__input"
           dir="ltr"
-          maxLength={4096}
-          onBlur={commit}
+          onBlur={() => finishEdit(true)}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
               event.preventDefault()
-              commit()
+              event.stopPropagation()
+              finishEdit(true)
             } else if (event.key === 'Escape') {
               event.preventDefault()
-              setDraft(math)
-              setIsEditing(false)
+              event.stopPropagation()
+              finishEdit(false)
             }
           }}
           size={Math.max(8, Math.min(48, draft.length || 8))}
@@ -68,12 +101,12 @@ function InlineMathComponent(props: any) {
       contentEditable={false}
       dir="ltr"
       onClick={() => {
-        if (isEditable) setIsEditing(true)
+        if (isEditable) beginEdit()
       }}
       onKeyDown={(event: React.KeyboardEvent) => {
         if (isEditable && (event.key === 'Enter' || event.key === ' ')) {
           event.preventDefault()
-          setIsEditing(true)
+          beginEdit()
         }
       }}
       role={isEditable ? 'button' : undefined}
@@ -86,11 +119,11 @@ function InlineMathComponent(props: any) {
           dangerouslySetInnerHTML={{ __html: renderedMath }}
         />
       ) : (
-        <code className="inline-math__fallback">
-          {sourceOpen}
-          {math}
-          {sourceClose}
-        </code>
+        <EscapedInlineMathFallback
+          math={math}
+          sourceOpen={sourceOpen}
+          sourceClose={sourceClose}
+        />
       )}
     </NodeViewWrapper>
   )

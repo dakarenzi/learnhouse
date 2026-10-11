@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { Editor, generateText } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
+import React from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { Window } from 'happy-dom'
 import { Table } from '@tiptap/extension-table'
 import TableCell from '@tiptap/extension-table-cell'
@@ -8,6 +10,7 @@ import TableHeader from '@tiptap/extension-table-header'
 import TableRow from '@tiptap/extension-table-row'
 
 import InlineMath from '../components/Objects/Editor/Extensions/InlineMath/InlineMath.ts'
+import { EscapedInlineMathFallback } from '../components/Objects/Editor/Extensions/InlineMath/InlineMathComponent.tsx'
 import { renderInlineMath, MAX_INLINE_MATH_SOURCE_LENGTH } from '../components/Objects/Editor/Extensions/InlineMath/renderInlineMath.ts'
 
 const testWindow = new Window()
@@ -105,6 +108,22 @@ describe('native inlineMath schema', () => {
     reopened.destroy()
   })
 
+  test('preserves source longer than the rendering limit without rewriting it', () => {
+    const source = 'x'.repeat(MAX_INLINE_MATH_SOURCE_LENGTH + 1)
+    const content = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [
+        { type: 'inlineMath', attrs: { math_equation: source, source_open: '\\(', source_close: '\\)' } },
+      ] }],
+    }
+    const editor = createEditor(content)
+    const saved = editor.getJSON()
+    editor.destroy()
+
+    expect(saved.content[0].content[0].attrs.math_equation).toBe(source)
+    expect(renderInlineMath(saved.content[0].content[0].attrs.math_equation)).toBeNull()
+  })
+
   test('keeps formulas inline in headings, paragraphs, lists, and table cells', () => {
     const editor = createEditor(fixture)
     const doc = editor.state.doc
@@ -184,5 +203,17 @@ describe('safe inline KaTeX rendering', () => {
     const oversized = 'x'.repeat(MAX_INLINE_MATH_SOURCE_LENGTH + 1)
     expect(renderInlineMath(oversized)).toBeNull()
     expect(oversized).toHaveLength(MAX_INLINE_MATH_SOURCE_LENGTH + 1)
+  })
+
+  test('renders invalid source as escaped React text, not executable HTML', () => {
+    const source = '<img src=x onerror=alert(1)>'
+    const html = renderToStaticMarkup(React.createElement(EscapedInlineMathFallback, {
+      math: source,
+      sourceOpen: '\\(',
+      sourceClose: '\\)',
+    }))
+
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
+    expect(html).not.toContain('<img')
   })
 })
