@@ -26,6 +26,7 @@ from src.db.courses.courses import Course
 from src.db.organizations import Organization
 from src.db.users import PublicUser, AnonymousUser, APITokenUser
 from src.security.rbac import check_resource_access, AccessAction
+from src.security.course_media_access import enforce_course_lesson_access
 
 from .models import ExportManifest, ExportCourseInfo
 from .storage_utils import read_file_content, list_directory, walk_directory
@@ -97,6 +98,7 @@ async def export_courses_batch(
             )
 
         await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.READ)
+        await enforce_course_lesson_access(course, current_user, db_session, request)
 
         if org is None:
             org_statement = select(Organization).where(Organization.id == course.org_id)

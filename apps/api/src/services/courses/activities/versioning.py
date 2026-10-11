@@ -11,6 +11,7 @@ from typing import List, Optional
 
 from src.security.auth import resolve_acting_user_id
 from src.security.rbac import check_resource_access, AccessAction
+from src.security.course_media_access import enforce_course_lesson_access
 from src.security.features_utils.usage import check_feature_access
 from src.services.webhooks.dispatch import dispatch_webhooks
 
@@ -117,6 +118,7 @@ async def get_activity_versions(
         )
 
     await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.READ)
+    await enforce_course_lesson_access(course, current_user, db_session, request)
 
     # Get versions with user info
     statement = (
@@ -181,6 +183,7 @@ async def get_activity_version(
         )
 
     await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.READ)
+    await enforce_course_lesson_access(course, current_user, db_session, request)
 
     # Get specific version with user info
     statement = (

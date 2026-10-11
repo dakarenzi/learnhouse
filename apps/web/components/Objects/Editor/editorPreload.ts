@@ -8,6 +8,7 @@ const COMPONENT_LOADERS: Record<string, () => Promise<unknown>> = {
   blockImage: () => import('./Extensions/Image/ImageBlockComponent'),
   blockMathEquation: () =>
     import('./Extensions/MathEquation/MathEquationBlockComponent'),
+  inlineMath: () => import('./Extensions/InlineMath/InlineMathComponent'),
   blockPDF: () => import('./Extensions/PDF/PDFBlockComponent'),
   blockH5P: () => import('./Extensions/H5P/H5PBlockComponent'),
   blockLibrary: () => import('./Extensions/Library/LibraryBlockComponent'),

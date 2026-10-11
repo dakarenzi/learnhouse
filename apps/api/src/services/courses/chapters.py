@@ -19,6 +19,7 @@ from src.db.courses.chapters import (
 from src.db.courses.courses import Course
 from fastapi import HTTPException, status, Request
 from src.security.rbac import check_resource_access, AccessAction
+from src.security.course_media_access import enforce_course_lesson_access
 from src.services.courses.locks import (
     batch_accessible_restricted_uuids,
     is_locked_for_user,
@@ -120,6 +121,7 @@ async def get_chapter(
 
     # RBAC check
     await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.READ)
+    await enforce_course_lesson_access(course, current_user, db_session, request)
 
     # Get activities for this chapter
     statement = (
@@ -267,6 +269,7 @@ async def get_course_chapters(
     # RBAC check — cheap when the caller already ran it on this request
     # (the checker is memoized on request.state).
     await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.READ)  # type: ignore
+    await enforce_course_lesson_access(course, current_user, db_session, request)  # type: ignore[arg-type]
 
     chapter_ids = [chapter.id for chapter in chapters]
     if chapter_ids:

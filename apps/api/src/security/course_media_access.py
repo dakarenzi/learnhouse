@@ -102,6 +102,43 @@ async def _is_course_preview_authorized(
     return bool(decision.allowed and (decision.via_admin or decision.via_authorship))
 
 
+async def enforce_course_lesson_access(
+    course: Course,
+    current_user,
+    db_session: AsyncSession,
+    request: Request | None,
+) -> tuple[bool, bool]:
+    """Enforce publication and current paid entitlement for lesson bodies.
+
+    Returns ``(is_preview, has_paid_offer)``. Callers still perform their
+    normal RBAC check for published non-paid courses. Paid UserGroup
+    membership alone is insufficient: the payment service must confirm a live,
+    course-specific entitlement before lesson JSON or media can be returned.
+    """
+    if await _is_course_preview_authorized(
+        request, course.course_uuid, current_user, db_session
+    ):
+        return True, False
+
+    if not course.published:
+        status_code = 401 if isinstance(current_user, AnonymousUser) else 403
+        raise HTTPException(status_code=status_code, detail="Access denied")
+
+    if not await _resource_has_paid_offer(course.course_uuid, db_session):
+        return False, False
+
+    if isinstance(current_user, AnonymousUser):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if isinstance(current_user, APITokenUser) or not isinstance(current_user, PublicUser):
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not await _has_current_paid_enrollment(
+        course.course_uuid, current_user, db_session
+    ):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    return False, True
+
+
 async def enforce_course_activity_media_access(
     parts: list[str],
     current_user,
@@ -127,24 +164,12 @@ async def enforce_course_activity_media_access(
     if course is None or activity is None:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    is_preview = await _is_course_preview_authorized(
-        request, course_uuid, current_user, db_session
+    is_preview, has_paid_offer = await enforce_course_lesson_access(
+        course, current_user, db_session, request
     )
 
     if not is_preview:
-        if not course.published:
-            status_code = 401 if isinstance(current_user, AnonymousUser) else 403
-            raise HTTPException(status_code=status_code, detail="Access denied")
-
-        has_paid_offer = await _resource_has_paid_offer(course_uuid, db_session)
-        if has_paid_offer:
-            if isinstance(current_user, AnonymousUser):
-                raise HTTPException(status_code=401, detail="Authentication required")
-            if isinstance(current_user, APITokenUser) or not isinstance(current_user, PublicUser):
-                raise HTTPException(status_code=403, detail="Access denied")
-            if not await _has_current_paid_enrollment(course_uuid, current_user, db_session):
-                raise HTTPException(status_code=403, detail="Access denied")
-        else:
+        if not has_paid_offer:
             from src.security.rbac import AccessAction, AccessContext, check_resource_access
 
             try:

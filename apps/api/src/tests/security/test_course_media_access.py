@@ -185,6 +185,52 @@ async def test_expired_paid_entitlement_is_denied(router, db, org, regular_user,
     assert exc.value.status_code == 403
 
 
+@pytest.mark.parametrize("reader", ["activity", "chapter", "course_tree"])
+@pytest.mark.asyncio
+async def test_paid_course_json_requires_current_entitlement(
+    reader, db, org, course, chapter, activity, regular_user, mock_request, monkeypatch
+):
+    """Course-body APIs must apply the same payment check as direct media URLs."""
+    from src.services.courses.activities import activities as activity_service
+    from src.services.courses import chapters as chapter_service
+    from src.services.courses import courses as course_service
+
+    course.public = True
+    course.published = True
+    await db.commit()
+    monkeypatch.setattr(
+        course_media_access, "_is_course_preview_authorized", AsyncMock(return_value=False)
+    )
+    monkeypatch.setattr(
+        course_media_access, "_resource_has_paid_offer", AsyncMock(return_value=True)
+    )
+    monkeypatch.setattr(
+        course_media_access, "_has_current_paid_enrollment", AsyncMock(return_value=False)
+    )
+
+    if reader == "activity":
+        service = activity_service
+        call = activity_service.get_activity(
+            mock_request, activity.activity_uuid, regular_user, db
+        )
+    elif reader == "chapter":
+        service = chapter_service
+        call = chapter_service.get_chapter(
+            mock_request, chapter.id, regular_user, db
+        )
+    else:
+        service = course_service
+        call = course_service.get_course_meta(
+            mock_request, course.course_uuid, False, regular_user, db
+        )
+
+    monkeypatch.setattr(service, "check_resource_access", AsyncMock())
+    with pytest.raises(HTTPException) as exc:
+        await call
+
+    assert exc.value.status_code == 403
+
+
 @pytest.mark.parametrize("router", _CONTENT_ROUTERS)
 @pytest.mark.parametrize("principal", ["anonymous", "regular"])
 @pytest.mark.asyncio

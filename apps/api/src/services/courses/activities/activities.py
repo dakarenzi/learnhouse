@@ -19,6 +19,7 @@ import logging
 
 from src.core.ee_hooks import check_ee_activity_paid_access
 from src.security.rbac import check_resource_access, AccessAction
+from src.security.course_media_access import enforce_course_lesson_access
 from src.services.courses.activities.versioning import create_activity_version
 from src.services.courses.locks import (
     batch_accessible_restricted_uuids,
@@ -138,6 +139,7 @@ async def get_activity(
 
     # RBAC check
     await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.READ)
+    await enforce_course_lesson_access(course, current_user, db_session, request)
 
     # Paid access check (via EE hook with fallback to True if EE not available)
     has_paid_access = await check_ee_activity_paid_access(
@@ -208,6 +210,7 @@ async def get_editor_bootstrap(
     await check_resource_access(
         request, db_session, current_user, course.course_uuid, AccessAction.READ
     )
+    await enforce_course_lesson_access(course, current_user, db_session, request)
 
     has_paid_access = await check_ee_activity_paid_access(
         request=request,
@@ -537,5 +540,6 @@ async def get_activities(
 
     _, chapter, course = results[0]
     await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.READ)
+    await enforce_course_lesson_access(course, current_user, db_session, request)
 
     return [ActivityRead.model_validate(activity) for activity, _, _ in results]

@@ -37,6 +37,7 @@ from src.security.rbac import (
 )
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.security.superadmin import is_user_superadmin
+from src.security.course_media_access import enforce_course_lesson_access
 from src.services.courses.thumbnails import upload_thumbnail
 from src.services.search.normalization import LIKE_ESCAPE_CHAR, build_like_pattern
 from src.services.webhooks.dispatch import dispatch_webhooks
@@ -189,6 +190,9 @@ async def get_course_meta(
         AccessAction.READ,
         context=AccessContext.DASHBOARD,
     )
+    # Detached course models have no lesson body or cached tree to expose.
+    if course.id is not None:
+        await enforce_course_lesson_access(course, current_user, db_session, request)
 
     # Permission check passed — try Redis cache for the heavy data.
     # SECURITY: chapter/activity content is lock-stripped PER USER in
