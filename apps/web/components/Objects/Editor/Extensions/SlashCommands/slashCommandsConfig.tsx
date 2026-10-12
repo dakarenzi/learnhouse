@@ -294,6 +294,20 @@ export const slashCommands: SlashCommandItem[] = [
     },
   },
   {
+    id: 'inlineMath',
+    title: 'Inline Math',
+    description: 'Add an inline LaTeX formula',
+    icon: <Sigma size={18} />,
+    category: 'interactive',
+    keywords: ['inline', 'math', 'equation', 'latex', 'formula'],
+    command: (editor) => {
+      editor.chain().focus().insertContent({
+        type: 'inlineMath',
+        attrs: { math_equation: '', source_open: '\\(', source_close: '\\)' },
+      }).run()
+    },
+  },
+  {
     id: 'webPreview',
     title: 'Web Preview',
     description: 'Preview a web page',

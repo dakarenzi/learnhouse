@@ -244,7 +244,7 @@ function ActivityClient(props: ActivityClientProps) {
   const orgslug = props.orgslug
   const org = useOrg() as any
 
-  const { data: course, isLoading: courseLoading } = useCourseMeta(courseuuid)
+  const { data: course, isLoading: courseLoading } = useCourseMeta(courseuuid, true)
   const { data: activity, isLoading: activityLoading } = useActivity(activityid)
   const session = useLHSession() as any;
   const pathname = usePathname()
@@ -260,12 +260,24 @@ function ActivityClient(props: ActivityClientProps) {
   const { track } = useLHAnalytics('learner')
   const activityStartTime = useRef(Date.now())
 
+  // The course tree is populated with draft activities only when the server
+  // authorizes `with_unpublished_activities=true`. Use that server-filtered
+  // result as the preview signal; client role flags never grant access.
+  const isAuthorizedDraftPreview = !!(
+    activity && activity.published === false && course?.chapters?.some((chapter: any) =>
+      chapter.activities?.some((listedActivity: any) =>
+        listedActivity.activity_uuid === (activity.activity_uuid || `activity_${activityid.replace('activity_', '')}`) &&
+        listedActivity.published === false
+      )
+    )
+  )
+
   // Track activity view on mount, time_on_activity on unmount
   const activityUuidForTracking = activity?.activity_uuid
   const courseUuidForTracking = course?.course_uuid
   const activityTypeForTracking = activity?.activity_type
   useEffect(() => {
-    if (activityUuidForTracking && courseUuidForTracking) {
+    if (activityUuidForTracking && courseUuidForTracking && activity?.published === true) {
       activityStartTime.current = Date.now()
       track(AnalyticsEvent.ActivityViewed, {
         activity_uuid: activityUuidForTracking,
@@ -274,7 +286,7 @@ function ActivityClient(props: ActivityClientProps) {
       })
     }
     return () => {
-      if (activityUuidForTracking && courseUuidForTracking) {
+      if (activityUuidForTracking && courseUuidForTracking && activity?.published === true) {
         const seconds = Math.round((Date.now() - activityStartTime.current) / 1000)
         if (seconds > 0) {
           track(AnalyticsEvent.TimeOnActivity, {
@@ -285,7 +297,7 @@ function ActivityClient(props: ActivityClientProps) {
         }
       }
     }
-  }, [activityid, activityUuidForTracking, courseUuidForTracking, activityTypeForTracking, track])
+  }, [activityid, activity?.published, activityUuidForTracking, courseUuidForTracking, activityTypeForTracking, track])
 
   const _queryClient = useQueryClient()
 
@@ -301,7 +313,7 @@ function ActivityClient(props: ActivityClientProps) {
 
   // Memoize activity content
   const activityContent = useMemo(() => {
-    if (!activity || !activity.published || activity.content.paid_access === false) {
+    if (!activity || (!activity.published && !isAuthorizedDraftPreview) || (activity.content.paid_access === false && !isAuthorizedDraftPreview)) {
       return null;
     }
 
@@ -372,7 +384,7 @@ function ActivityClient(props: ActivityClientProps) {
       default:
         return null;
     }
-  }, [activity, course, assignment, orgslug]);
+  }, [activity, course, assignment, orgslug, isAuthorizedDraftPreview]);
 
   // Past the last activity lies the course-end screen holding the certificate.
   const isLastActivity = currentIndex >= 0 && !nextActivity;
@@ -647,7 +659,7 @@ function ActivityClient(props: ActivityClientProps) {
                           transition={{ delay: 0.2 }}
                           className="flex items-center space-x-2"
                         >
-                          {activity && (
+                          {activity && !isAuthorizedDraftPreview && (
                             <div className="hidden sm:block">
                               <ActivityShareDropdown
                                 activityName={activity.name}
@@ -682,9 +694,9 @@ function ActivityClient(props: ActivityClientProps) {
                   {/* Focus Mode Content */}
                   <div className="pt-16 pb-20 h-full overflow-auto">
                     <div className="container mx-auto px-4">
-                      {activity && activity.published == true && (
+                      {activity && (activity.published == true || isAuthorizedDraftPreview) && (
                         <>
-                          {activity.content.paid_access == false ? (
+                          {activity.content.paid_access == false && !isAuthorizedDraftPreview ? (
                             <PaidCourseActivityDisclaimer course={course} />
                           ) : (
                             <motion.div
@@ -705,7 +717,7 @@ function ActivityClient(props: ActivityClientProps) {
                   </div>
 
                   {/* Focus Mode Bottom Bar */}
-                  {activity && activity.published == true && activity.content.paid_access != false && (
+                  {activity && (activity.published == true || isAuthorizedDraftPreview) && (activity.content.paid_access != false || isAuthorizedDraftPreview) && (
                     <motion.div 
                       initial={isInitialRender.current ? false : { y: 100 }}
                       animate={{ y: 0 }}
@@ -737,15 +749,17 @@ function ActivityClient(props: ActivityClientProps) {
                             </button>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <ActivityActions
-                              activity={activity}
-                              activityid={activityid}
-                              course={course}
-                              orgslug={orgslug}
-                              assignment={assignment}
-                              showNavigation={false}
-                              trailData={trailData}
-                            />
+                            {!isAuthorizedDraftPreview && (
+                              <ActivityActions
+                                activity={activity}
+                                activityid={activityid}
+                                course={course}
+                                orgslug={orgslug}
+                                assignment={assignment}
+                                showNavigation={false}
+                                trailData={trailData}
+                              />
+                            )}
                             <button
                               onClick={() => navigateToActivity(nextActivity)}
                               className={`flex items-center space-x-1.5 p-2 rounded-md transition-all duration-200 cursor-pointer ${
@@ -939,18 +953,18 @@ function ActivityClient(props: ActivityClientProps) {
                             </div>
                           </div>
                           <div className="hidden sm:flex space-x-2 items-center relative shrink-0" style={{ zIndex: 'var(--z-interactive)' }}>
-                            {activity && activity.published == true && activity.content.paid_access != false && (
+                            {activity && (activity.published == true || isAuthorizedDraftPreview) && (activity.content.paid_access != false || isAuthorizedDraftPreview) && (
                               <AuthenticatedClientElement checkMethod="authentication">
                                 {activity.activity_type != 'TYPE_ASSIGNMENT' && (
                                   <>
-                                    <AIActivityAsk activity={activity} />
+                                    {activity.published === true && <AIActivityAsk activity={activity} />}
                                     <ActivityChapterDropdown
                                       course={course}
                                       currentActivityId={activity.activity_uuid ? activity.activity_uuid.replace('activity_', '') : activityid.replace('activity_', '')}
                                       orgslug={orgslug}
                                       trailData={trailData}
                                     />
-                                    {contributorStatus === 'ACTIVE' && activity.activity_type == 'TYPE_DYNAMIC' && (
+                                    {activity.published === true && contributorStatus === 'ACTIVE' && activity.activity_type == 'TYPE_DYNAMIC' && (
                                       <Link
                                         href={getUriWithOrg(orgslug, '') + `/course/${courseuuid}/activity/${activityid}/edit`}
                                         className="bg-emerald-600 rounded-full px-5 drop-shadow-md flex items-center space-x-2 p-2.5 text-white hover:cursor-pointer transition delay-150 duration-300 ease-in-out"
@@ -967,9 +981,9 @@ function ActivityClient(props: ActivityClientProps) {
                         </div>
                       </div>
 
-                      {activityLoading || !activity ? (
+                      {activityLoading || courseLoading || !activity ? (
                         <ActivityContentSkeleton activityType={displayActivityType} />
-                      ) : activity.published == false ? (
+                      ) : activity.published == false && !isAuthorizedDraftPreview ? (
                         <div className="p-7 rounded-lg bg-gray-800">
                           <div className="text-white">
                             <h1 className="font-bold text-2xl">
@@ -977,12 +991,18 @@ function ActivityClient(props: ActivityClientProps) {
                             </h1>
                           </div>
                         </div>
-                      ) : activity.published == true ? (
+                      ) : activity.published == true || isAuthorizedDraftPreview ? (
                         <>
-                          {activity.content.paid_access == false ? (
+                          {activity.content.paid_access == false && !isAuthorizedDraftPreview ? (
                             <PaidCourseActivityDisclaimer course={course} />
                           ) : (
-                            <div className="flex gap-6">
+                            <div>
+                              {isAuthorizedDraftPreview && (
+                                <div className="mb-3 inline-flex rounded-md bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-900" role="status">
+                                  Preview · unpublished
+                                </div>
+                              )}
+                              <div className="flex gap-6">
                               <div className={`flex-1 min-w-0 ${activity.activity_type === 'TYPE_SCORM' ? 'rounded-xl overflow-hidden' : 'p-3 sm:p-7 rounded-lg'} ${bgColor} relative isolate`} style={{ zIndex: 'var(--z-base)' }}>
                                 <button
                                   onClick={() => setIsFocusMode(true)}
@@ -999,9 +1019,12 @@ function ActivityClient(props: ActivityClientProps) {
                                 </button>
                                 {activityContent}
                               </div>
-                              <Suspense fallback={null}>
-                                <AISidePanelInline activity={activity} />
-                              </Suspense>
+                              {!isAuthorizedDraftPreview && (
+                                <Suspense fallback={null}>
+                                  <AISidePanelInline activity={activity} />
+                                </Suspense>
+                              )}
+                              </div>
                             </div>
                           )}
                         </>
@@ -1033,6 +1056,27 @@ function ActivityClient(props: ActivityClientProps) {
                               orgslug={orgslug}
                             />
                           </div>
+                        </div>
+                      )}
+
+                      {activity && isAuthorizedDraftPreview && (
+                        <div className="flex items-center justify-between mt-4 w-full gap-3" aria-label="Preview lesson navigation">
+                          <button
+                            type="button"
+                            onClick={() => navigateToActivity(prevActivity)}
+                            disabled={!prevActivity}
+                            className="rounded-md border px-4 py-2 text-sm disabled:opacity-50"
+                          >
+                            {t('common.previous')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => navigateToActivity(nextActivity)}
+                            disabled={!nextActivity && !isLastActivity}
+                            className="rounded-md border px-4 py-2 text-sm disabled:opacity-50"
+                          >
+                            {t('common.next')}
+                          </button>
                         </div>
                       )}
 

@@ -4,10 +4,22 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
-
-from src.db.courses.activities import ActivityCreate, ActivityRead, ActivityTypeEnum, ActivitySubTypeEnum, ActivityUpdate
+from src.db.courses.activities import (
+    ActivityCreate,
+    ActivityRead,
+    ActivitySubTypeEnum,
+    ActivityTypeEnum,
+    ActivityUpdate,
+)
 from src.db.organizations import OrganizationRead
+from src.db.resource_authors import (
+    ResourceAuthor,
+    ResourceAuthorshipEnum,
+    ResourceAuthorshipStatusEnum,
+)
+from src.security import course_media_access
 from src.services.courses.activities.activities import (
+    EditorBootstrapResponse,
     _apply_activity_lock,
     _trigger_course_embedding,
     create_activity,
@@ -17,8 +29,19 @@ from src.services.courses.activities.activities import (
     get_activityby_id,
     get_editor_bootstrap,
     update_activity,
-    EditorBootstrapResponse,
 )
+
+
+async def _read_activity_by_identifier(
+    identifier, mock_request, activity, current_user, db
+):
+    if identifier == "uuid":
+        return await get_activity(
+            mock_request, activity.activity_uuid, current_user, db
+        )
+    return await get_activityby_id(
+        mock_request, activity.id, current_user, db
+    )
 
 
 class TestCreateActivity:
@@ -124,6 +147,10 @@ class TestGetEditorBootstrap:
             "src.services.courses.activities.activities.check_resource_access",
             new_callable=AsyncMock,
         ), patch(
+            "src.services.courses.activities.activities.enforce_course_lesson_access",
+            new_callable=AsyncMock,
+            return_value=(False, False),
+        ), patch(
             "src.services.courses.activities.activities.check_ee_activity_paid_access",
             new_callable=AsyncMock,
             return_value=False,
@@ -139,6 +166,36 @@ class TestGetEditorBootstrap:
             )
 
         assert result.activity.content == {"paid_access": False}
+
+    @pytest.mark.asyncio
+    async def test_editor_preview_keeps_content_without_student_entitlement(
+        self, mock_request, db, org, course, chapter, activity, admin_user
+    ):
+        fake_org_read = MagicMock(spec=OrganizationRead)
+        with patch(
+            "src.services.courses.activities.activities.check_resource_access",
+            new_callable=AsyncMock,
+        ), patch(
+            "src.services.courses.activities.activities.enforce_course_lesson_access",
+            new_callable=AsyncMock,
+            return_value=(True, False),
+        ), patch(
+            "src.services.courses.activities.activities.check_ee_activity_paid_access",
+            new_callable=AsyncMock,
+            return_value=False,
+        ) as paid_check, patch(
+            "src.services.courses.activities.activities._apply_activity_lock",
+            new_callable=AsyncMock,
+        ), patch(
+            "src.services.orgs.orgs._build_org_read_with_resolved",
+            return_value=fake_org_read,
+        ):
+            result = await get_editor_bootstrap(
+                mock_request, activity.activity_uuid, admin_user, db
+            )
+
+        assert result.activity.content == activity.content
+        paid_check.assert_not_awaited()
 
 
 class TestGetActivity:
@@ -182,6 +239,388 @@ class TestGetActivity:
 
         assert isinstance(result, ActivityRead)
         assert result.name == activity.name
+
+    @pytest.mark.asyncio
+    async def test_author_preview_keeps_content_without_student_entitlement(
+        self, mock_request, db, org, course, chapter, activity, admin_user
+    ):
+        with patch(
+            "src.services.courses.activities.activities.check_resource_access",
+            new_callable=AsyncMock,
+        ), patch(
+            "src.services.courses.activities.activities.enforce_course_lesson_access",
+            new_callable=AsyncMock,
+            return_value=(True, False),
+        ), patch(
+            "src.services.courses.activities.activities.check_ee_activity_paid_access",
+            new_callable=AsyncMock,
+            return_value=False,
+        ) as paid_check, patch(
+            "src.services.courses.activities.activities._apply_activity_lock",
+            new_callable=AsyncMock,
+        ):
+            result = await get_activity(
+                mock_request, activity.activity_uuid, admin_user, db
+            )
+
+        assert result.content == activity.content
+        paid_check.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("identifier", ["uuid", "numeric"])
+    @pytest.mark.parametrize(
+        ("principal", "is_public", "expected_status"),
+        [
+            ("anonymous", False, 401),
+            ("learner", False, 403),
+            ("anonymous", True, 401),
+            ("learner", True, 403),
+        ],
+    )
+    async def test_unpublished_course_denied_without_content_disclosure(
+        self,
+        identifier,
+        principal,
+        is_public,
+        expected_status,
+        mock_request,
+        db,
+        course,
+        chapter,
+        activity,
+        regular_user,
+        anonymous_user,
+        monkeypatch,
+    ):
+        course.public = is_public
+        course.published = False
+        activity.content = {"body": "private lesson sentinel"}
+        await db.commit()
+        monkeypatch.setattr(
+            course_media_access,
+            "_is_course_preview_authorized",
+            AsyncMock(return_value=False),
+        )
+        current_user = anonymous_user if principal == "anonymous" else regular_user
+
+        with pytest.raises(HTTPException) as exc:
+            await _read_activity_by_identifier(
+                identifier, mock_request, activity, current_user, db
+            )
+
+        assert exc.value.status_code == expected_status
+        assert "private lesson sentinel" not in str(exc.value.detail)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("identifier", ["uuid", "numeric"])
+    async def test_private_published_course_denied_without_content_disclosure(
+        self,
+        identifier,
+        mock_request,
+        db,
+        course,
+        chapter,
+        activity,
+        anonymous_user,
+        monkeypatch,
+    ):
+        course.public = False
+        course.published = True
+        activity.content = {"body": "private course sentinel"}
+        await db.commit()
+        monkeypatch.setattr(
+            course_media_access,
+            "_is_course_preview_authorized",
+            AsyncMock(return_value=False),
+        )
+        with pytest.raises(HTTPException) as exc:
+            await _read_activity_by_identifier(
+                identifier, mock_request, activity, anonymous_user, db
+            )
+
+        assert exc.value.status_code == 403
+        assert "private course sentinel" not in str(exc.value.detail)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("identifier", ["uuid", "numeric"])
+    @pytest.mark.parametrize("has_entitlement", [False, True])
+    async def test_paid_course_requires_verified_entitlement(
+        self,
+        identifier,
+        has_entitlement,
+        mock_request,
+        db,
+        course,
+        chapter,
+        activity,
+        regular_user,
+        monkeypatch,
+    ):
+        course.public = True
+        course.published = True
+        activity.content = {"body": "paid lesson sentinel"}
+        await db.commit()
+        monkeypatch.setattr(
+            course_media_access,
+            "_is_course_preview_authorized",
+            AsyncMock(return_value=False),
+        )
+        monkeypatch.setattr(
+            course_media_access, "_resource_has_paid_offer", AsyncMock(return_value=True)
+        )
+        entitlement_check = AsyncMock(return_value=has_entitlement)
+        monkeypatch.setattr(
+            course_media_access, "_has_current_paid_enrollment", entitlement_check
+        )
+        monkeypatch.setattr(
+            "src.services.courses.activities.activities.check_ee_activity_paid_access",
+            AsyncMock(return_value=True),
+        )
+
+        if not has_entitlement:
+            with pytest.raises(HTTPException) as exc:
+                await _read_activity_by_identifier(
+                    identifier, mock_request, activity, regular_user, db
+                )
+            assert exc.value.status_code == 403
+            assert "paid lesson sentinel" not in str(exc.value.detail)
+        else:
+            monkeypatch.setattr(
+                "src.services.courses.activities.activities._apply_activity_lock",
+                AsyncMock(),
+            )
+            result = await _read_activity_by_identifier(
+                identifier, mock_request, activity, regular_user, db
+            )
+            assert result.content == {"body": "paid lesson sentinel"}
+
+        entitlement_check.assert_awaited_once_with(course.course_uuid, regular_user, db)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("identifier", ["uuid", "numeric"])
+    async def test_unpublished_activity_denied_on_accessible_course(
+        self,
+        identifier,
+        mock_request,
+        db,
+        course,
+        chapter,
+        activity,
+        regular_user,
+        monkeypatch,
+    ):
+        course.public = True
+        course.published = True
+        activity.published = False
+        activity.content = {"body": "unpublished activity sentinel"}
+        await db.commit()
+        monkeypatch.setattr(
+            course_media_access,
+            "_is_course_preview_authorized",
+            AsyncMock(return_value=False),
+        )
+        monkeypatch.setattr(
+            course_media_access, "_resource_has_paid_offer", AsyncMock(return_value=False)
+        )
+        monkeypatch.setattr(
+            "src.services.courses.activities.activities.check_resource_access",
+            AsyncMock(),
+        )
+
+        with pytest.raises(HTTPException) as exc:
+            await _read_activity_by_identifier(
+                identifier, mock_request, activity, regular_user, db
+            )
+
+        assert exc.value.status_code == 403
+        assert "unpublished activity sentinel" not in str(exc.value.detail)
+
+    @pytest.mark.asyncio
+    async def test_editor_bootstrap_denies_unpublished_activity_to_learner(
+        self,
+        mock_request,
+        db,
+        course,
+        chapter,
+        activity,
+        regular_user,
+        monkeypatch,
+    ):
+        course.public = True
+        course.published = True
+        activity.published = False
+        activity.content = {"body": "unpublished editor sentinel"}
+        await db.commit()
+        monkeypatch.setattr(
+            course_media_access,
+            "_is_course_preview_authorized",
+            AsyncMock(return_value=False),
+        )
+        monkeypatch.setattr(
+            course_media_access, "_resource_has_paid_offer", AsyncMock(return_value=False)
+        )
+        monkeypatch.setattr(
+            "src.services.courses.activities.activities.check_resource_access",
+            AsyncMock(),
+        )
+
+        with pytest.raises(HTTPException) as exc:
+            await get_editor_bootstrap(
+                mock_request, activity.activity_uuid, regular_user, db
+            )
+
+        assert exc.value.status_code == 403
+        assert "unpublished editor sentinel" not in str(exc.value.detail)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("identifier", ["uuid", "numeric"])
+    @pytest.mark.parametrize("locked_resource", ["chapter", "activity"])
+    async def test_restricted_locks_scrub_reader_content(
+        self,
+        identifier,
+        locked_resource,
+        mock_request,
+        db,
+        course,
+        chapter,
+        activity,
+        regular_user,
+        monkeypatch,
+    ):
+        activity.content = {"body": "locked lesson sentinel"}
+        if locked_resource == "chapter":
+            chapter.lock_type = "restricted"
+        else:
+            activity.lock_type = "restricted"
+        await db.commit()
+        monkeypatch.setattr(
+            course_media_access,
+            "_is_course_preview_authorized",
+            AsyncMock(return_value=False),
+        )
+        monkeypatch.setattr(
+            course_media_access, "_resource_has_paid_offer", AsyncMock(return_value=False)
+        )
+        monkeypatch.setattr(
+            "src.services.courses.activities.activities.check_resource_access",
+            AsyncMock(),
+        )
+        monkeypatch.setattr(
+            "src.services.courses.activities.activities.check_ee_activity_paid_access",
+            AsyncMock(return_value=True),
+        )
+        monkeypatch.setattr(
+            "src.services.courses.activities.activities.is_org_admin",
+            AsyncMock(return_value=False),
+        )
+        monkeypatch.setattr(
+            "src.services.courses.activities.activities.batch_accessible_restricted_uuids",
+            AsyncMock(return_value=set()),
+        )
+
+        async def is_locked(lock_type, *_args, **_kwargs):
+            return lock_type == "restricted"
+
+        monkeypatch.setattr(
+            "src.services.courses.activities.activities.is_locked_for_user",
+            AsyncMock(side_effect=is_locked),
+        )
+
+        result = await _read_activity_by_identifier(
+            identifier, mock_request, activity, regular_user, db
+        )
+
+        assert result.is_locked is True
+        assert result.content == {}
+        assert result.details is None
+        assert "locked lesson sentinel" not in str(result.model_dump())
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("identifier", ["uuid", "numeric"])
+    @pytest.mark.parametrize("principal", ["author", "administrator"])
+    async def test_author_and_admin_can_preview_draft_activity(
+        self,
+        identifier,
+        principal,
+        mock_request,
+        db,
+        course,
+        chapter,
+        activity,
+        regular_user,
+        admin_user,
+        monkeypatch,
+    ):
+        course.public = False
+        course.published = False
+        chapter.lock_type = "restricted"
+        activity.lock_type = "restricted"
+        activity.published = False
+        activity.content = {"body": "draft preview sentinel"}
+        await db.commit()
+
+        current_user = admin_user
+        if principal == "author":
+            current_user = regular_user
+            db.add(
+                ResourceAuthor(
+                    resource_uuid=course.course_uuid,
+                    user_id=current_user.id,
+                    authorship=ResourceAuthorshipEnum.CREATOR,
+                    authorship_status=ResourceAuthorshipStatusEnum.ACTIVE,
+                    creation_date="test",
+                    update_date="test",
+                )
+            )
+            await db.commit()
+
+        paid_check = AsyncMock(return_value=False)
+        monkeypatch.setattr(
+            "src.services.courses.activities.activities.check_ee_activity_paid_access",
+            paid_check,
+        )
+
+        result = await _read_activity_by_identifier(
+            identifier, mock_request, activity, current_user, db
+        )
+
+        assert result.content == {"body": "draft preview sentinel"}
+        assert result.is_locked is False
+        paid_check.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_numeric_and_uuid_readers_return_the_same_authorized_payload(
+        self, mock_request, db, course, chapter, activity, regular_user, monkeypatch
+    ):
+        monkeypatch.setattr(
+            course_media_access,
+            "_is_course_preview_authorized",
+            AsyncMock(return_value=False),
+        )
+        monkeypatch.setattr(
+            course_media_access, "_resource_has_paid_offer", AsyncMock(return_value=False)
+        )
+        monkeypatch.setattr(
+            "src.services.courses.activities.activities.check_resource_access",
+            AsyncMock(),
+        )
+        monkeypatch.setattr(
+            "src.services.courses.activities.activities.check_ee_activity_paid_access",
+            AsyncMock(return_value=True),
+        )
+        monkeypatch.setattr(
+            "src.services.courses.activities.activities._apply_activity_lock",
+            AsyncMock(),
+        )
+
+        uuid_result = await get_activity(
+            mock_request, activity.activity_uuid, regular_user, db
+        )
+        numeric_result = await get_activityby_id(
+            mock_request, activity.id, regular_user, db
+        )
+
+        assert numeric_result.model_dump() == uuid_result.model_dump()
 
 
 class TestUpdateActivity:

@@ -16,6 +16,8 @@ import {
 } from '@phosphor-icons/react'
 
 import { useAuth } from '@components/Contexts/AuthContext'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { queryKeys } from '@/lib/query/keys'
 import { getCourseMetadata } from '@services/courses/courses'
 
 interface ActivitySwitcherProps {
@@ -55,6 +57,8 @@ export default function ActivitySwitcher({
 }: ActivitySwitcherProps) {
   const router = useRouter()
   const { accessToken } = useAuth()
+  const session = useLHSession() as any
+  const userScope = session?.data?.user?.user_uuid ?? 'anonymous'
   const [open, setOpen] = React.useState(false)
   const closeTimerRef = React.useRef<number | null>(null)
   const scrollRef = React.useRef<HTMLDivElement>(null)
@@ -65,10 +69,9 @@ export default function ActivitySwitcher({
   const cleanCourseUuid = courseUuid?.replace('course_', '') ?? ''
   const currentActivityUuid = activity?.activity_uuid
 
-  // Share the cache entry with CourseProvider's withUnpublishedActivities
-  // variant so a single fetch backs both consumers.
+  // Share the user-scoped draft-navigation cache with CourseProvider.
   const { data } = useQuery({
-    queryKey: ['course', cleanCourseUuid, 'meta', 'withUnpublished'],
+    queryKey: queryKeys.courses.metaWithUnpublished(cleanCourseUuid, userScope),
     queryFn: () =>
       getCourseMetadata(
         cleanCourseUuid,

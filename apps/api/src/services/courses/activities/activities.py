@@ -1,24 +1,32 @@
+import asyncio
+import logging
+from datetime import datetime
+from uuid import uuid4
+
+from fastapi import HTTPException, Request
+from pydantic import BaseModel
 from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-from src.db.courses.courses import Course
-from src.db.courses.chapters import Chapter
-from src.db.courses.activities import ActivityCreate, Activity, ActivityRead, ActivityUpdate
+from src.core.ee_hooks import check_ee_activity_paid_access
+from src.db.courses.activities import (
+    Activity,
+    ActivityCreate,
+    ActivityRead,
+    ActivityUpdate,
+)
 from src.db.courses.chapter_activities import ChapterActivity
-from src.db.organizations import Organization, OrganizationRead
+from src.db.courses.chapters import Chapter
+from src.db.courses.courses import Course
 from src.db.organization_config import OrganizationConfig
+from src.db.organizations import Organization, OrganizationRead
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.auth import resolve_acting_user_id
-from fastapi import HTTPException, Request
-from pydantic import BaseModel
-from uuid import uuid4
-from datetime import datetime
-
-import asyncio
-import logging
-
-from src.core.ee_hooks import check_ee_activity_paid_access
-from src.security.rbac import check_resource_access, AccessAction
+from src.security.course_media_access import (
+    enforce_activity_publication_access,
+    enforce_course_lesson_access,
+)
+from src.security.rbac import AccessAction, AccessContext, check_resource_access
 from src.services.courses.activities.versioning import create_activity_version
 from src.services.courses.locks import (
     batch_accessible_restricted_uuids,
@@ -116,7 +124,7 @@ async def create_activity(
 async def get_activity(
     request: Request,
     activity_uuid: str,
-    current_user: PublicUser,
+    current_user: PublicUser | AnonymousUser,
     db_session: AsyncSession,
 ):
     # Optimize by joining Activity with Course and last modified user in a single query
@@ -136,11 +144,15 @@ async def get_activity(
 
     activity, course, last_modified_user = result
 
-    # RBAC check
-    await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.READ)
+    is_preview, _ = await _enforce_activity_read_access(
+        request, activity, course, current_user, db_session
+    )
 
     # Paid access check (via EE hook with fallback to True if EE not available)
-    has_paid_access = await check_ee_activity_paid_access(
+    # Authors/admins may inspect the saved lesson during private preview. Paid
+    # student entitlements apply to learners, not to the course's verified
+    # preview principals.
+    has_paid_access = is_preview or await check_ee_activity_paid_access(
         request=request,
         activity_id=activity.id,
         user=current_user,
@@ -152,7 +164,14 @@ async def get_activity(
     # Include last modified user info
     activity_read.last_modified_by_username = last_modified_user.username if last_modified_user else None
 
-    await _apply_activity_lock(activity_read, activity, course, current_user, db_session)
+    await _apply_activity_lock(
+        activity_read,
+        activity,
+        course,
+        current_user,
+        db_session,
+        is_preview=is_preview,
+    )
 
     return activity_read
 
@@ -175,7 +194,7 @@ class EditorBootstrapResponse(BaseModel):
 async def get_editor_bootstrap(
     request: Request,
     activity_uuid: str,
-    current_user: PublicUser,
+    current_user: PublicUser | AnonymousUser,
     db_session: AsyncSession,
 ) -> EditorBootstrapResponse:
     """Single-roundtrip payload for the activity editor.
@@ -205,11 +224,11 @@ async def get_editor_bootstrap(
 
     activity, course, org, org_config, last_modified_user, parent_chapter = db_result
 
-    await check_resource_access(
-        request, db_session, current_user, course.course_uuid, AccessAction.READ
+    is_preview, _ = await _enforce_activity_read_access(
+        request, activity, course, current_user, db_session
     )
 
-    has_paid_access = await check_ee_activity_paid_access(
+    has_paid_access = is_preview or await check_ee_activity_paid_access(
         request=request,
         activity_id=activity.id,
         user=current_user,
@@ -230,6 +249,7 @@ async def get_editor_bootstrap(
         current_user,
         db_session,
         parent_chapter=parent_chapter,
+        is_preview=is_preview,
     )
 
     # Build org with resolved_features (same shape the existing /orgs/uuid/{uuid}
@@ -251,6 +271,34 @@ async def get_editor_bootstrap(
     )
 
 
+async def _enforce_activity_read_access(
+    request: Request,
+    activity: Activity,
+    course: Course,
+    current_user: PublicUser | AnonymousUser,
+    db_session: AsyncSession,
+) -> tuple[bool, bool]:
+    """Apply the shared course, entitlement, and activity publication policy."""
+    is_preview, has_course_paid_access = await enforce_course_lesson_access(
+        course, current_user, db_session, request
+    )
+    enforce_activity_publication_access(activity, is_preview)
+
+    # Course-level paid access is already verified by the shared helper. For
+    # free courses, retain normal public-view RBAC.
+    if not is_preview and not has_course_paid_access:
+        await check_resource_access(
+            request,
+            db_session,
+            current_user,
+            course.course_uuid,
+            AccessAction.READ,
+            context=AccessContext.PUBLIC_VIEW,
+        )
+
+    return is_preview, has_course_paid_access
+
+
 async def _apply_activity_lock(
     activity_read: ActivityRead,
     activity: Activity,
@@ -259,15 +307,20 @@ async def _apply_activity_lock(
     db_session: AsyncSession,
     *,
     parent_chapter: Chapter | None = None,
+    is_preview: bool = False,
 ) -> None:
     """Enforce chapter/activity lock_type on a single-activity read.
 
-    Admins/maintainers bypass. A usergroup attached at the course level also
+    Verified course-preview principals bypass student locks. Otherwise,
+    admins/maintainers bypass. A usergroup attached at the course level also
     unlocks every restricted chapter/activity inside that course (same
     inheritance rule as the TOC read). For everyone else, if either the
     activity or its parent chapter is locked, we scrub content/details and set
     ``is_locked=True`` so the client renders a gate instead of an empty page.
     """
+    if is_preview:
+        return
+
     is_anon = isinstance(current_user, AnonymousUser)
     acting_user_id = resolve_acting_user_id(current_user)
     admin = False if is_anon else await is_org_admin(acting_user_id, course.org_id, db_session)
@@ -331,29 +384,24 @@ async def _apply_activity_lock(
 async def get_activityby_id(
     request: Request,
     activity_id: int,
-    current_user: PublicUser,
+    current_user: PublicUser | AnonymousUser,
     db_session: AsyncSession,
 ):
-    # Optimize by joining Activity with Course in a single query
-    statement = (
-        select(Activity, Course)
-        .join(Course)
-        .where(Activity.id == activity_id)
-    )
-    result = (await db_session.execute(statement)).first()
+    activity = (await db_session.execute(
+        select(Activity).where(Activity.id == activity_id)
+    )).scalars().first()
 
-    if not result:
+    if activity is None:
         raise HTTPException(
             status_code=404,
             detail="Activity not found",
         )
 
-    activity, course = result
-
-    # RBAC check
-    await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.READ)
-
-    return ActivityRead.model_validate(activity)
+    # Keep the numeric identifier on the same authorization and response path
+    # as UUID reads; a parallel implementation could drift on new access rules.
+    return await get_activity(
+        request, activity.activity_uuid, current_user, db_session
+    )
 
 
 async def update_activity(
@@ -537,5 +585,6 @@ async def get_activities(
 
     _, chapter, course = results[0]
     await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.READ)
+    await enforce_course_lesson_access(course, current_user, db_session, request)
 
     return [ActivityRead.model_validate(activity) for activity, _, _ in results]

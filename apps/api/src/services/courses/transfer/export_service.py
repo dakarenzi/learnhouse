@@ -26,6 +26,7 @@ from src.db.courses.courses import Course
 from src.db.organizations import Organization
 from src.db.users import PublicUser, AnonymousUser, APITokenUser
 from src.security.rbac import check_resource_access, AccessAction
+from src.security.course_media_access import enforce_course_lesson_access
 
 from .models import ExportManifest, ExportCourseInfo
 from .storage_utils import read_file_content, list_directory, walk_directory
@@ -97,6 +98,7 @@ async def export_courses_batch(
             )
 
         await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.READ)
+        await enforce_course_lesson_access(course, current_user, db_session, request)
 
         if org is None:
             org_statement = select(Organization).where(Organization.id == course.org_id)
@@ -193,6 +195,7 @@ async def _load_course_export_data(
             "name": chapter.name,
             "description": chapter.description,
             "thumbnail_image": chapter.thumbnail_image,
+            "lock_type": chapter.lock_type.value,
             "order": course_chapter.order,
             "creation_date": chapter.creation_date,
             "update_date": chapter.update_date,
@@ -209,6 +212,7 @@ async def _load_course_export_data(
                 "content": copy.deepcopy(activity.content),
                 "details": copy.deepcopy(activity.details),
                 "published": activity.published,
+                "lock_type": activity.lock_type.value,
                 "order": ca.order,
                 "creation_date": activity.creation_date,
                 "update_date": activity.update_date,

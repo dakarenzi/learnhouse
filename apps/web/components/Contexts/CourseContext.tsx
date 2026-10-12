@@ -102,6 +102,7 @@ export function CourseProvider({
 }: any) {
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token
+  const userScope = session?.data?.user?.user_uuid ?? 'anonymous'
   const lastServerDataRef = useRef<any>(null)
 
   // Normalise the UUID: callers may pass either the clean form ("abc123") or
@@ -111,11 +112,10 @@ export function CourseProvider({
   // standalone useQuery share a single cache entry.
   const cleanUuid = courseuuid.replace('course_', '')
 
-  // For unpublished-activities variant there is no dedicated queryKeys entry,
-  // so we fall back to a raw key. The canonical (non-unpublished) variant uses
-  // queryKeys.courses.meta so invalidations from save actions land correctly.
+  // Draft navigation metadata is permission-filtered by the API and scoped by
+  // verified user identity so it cannot be reused after an account switch.
   const queryKey = withUnpublishedActivities
-    ? ['course', cleanUuid, 'meta', 'withUnpublished']
+    ? queryKeys.courses.metaWithUnpublished(cleanUuid, userScope)
     : queryKeys.courses.meta(cleanUuid)
 
   const { data: courseStructureData, error } = useQuery({
