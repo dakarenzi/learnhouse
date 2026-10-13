@@ -81,10 +81,11 @@ describe("resolveActivityVideoSource", () => {
     expect(r2.src).toBe("");
   });
 
-  test("no double slash regardless of backend trailing slash", () => {
+  test("uses a same-origin path without a double slash", () => {
     const { src } = resolveActivityVideoSource({ ...base, hlsReady: false });
     expect(src).not.toContain("ioapi");
-    expect(src.split("://")[1]).not.toContain("//");
+    expect(src).toStartWith("/api/protected-media/");
+    expect(src).not.toContain("//");
   });
 
   test("uses the MP4 stream endpoint when HLS is not ready", () => {
@@ -113,9 +114,10 @@ describe("resolveHlsThumbnails", () => {
     },
   };
 
-  test("builds an absolute sprite URL and passes config through", () => {
+  test("builds a same-origin sprite URL and passes config through", () => {
     const t = resolveHlsThumbnails(full, ids);
     expect(t).not.toBeNull();
+    expect(t.url).toStartWith("/api/protected-media/");
     expect(t.url).toContain("api/v1/stream/hls/org_1/course_1/activity_1/thumbnails/sprite.jpg");
     expect(t).toMatchObject({ interval: 10, width: 160, height: 90, columns: 10, rows: 6 });
   });
