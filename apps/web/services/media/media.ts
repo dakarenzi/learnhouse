@@ -24,7 +24,7 @@ export function getActivityVideoStreamUrl(
   activityUUID: string,
   filename: string
 ) {
-  return `${getApiUrl()}api/v1/stream/video/${orgUUID}/${courseUUID}/${activityUUID}/${filename}`
+  return `/api/protected-media/api/v1/stream/video/${orgUUID}/${courseUUID}/${activityUUID}/${filename}`
 }
 
 /**
@@ -37,7 +37,7 @@ export function getActivityHlsMasterUrl(
   courseUUID: string,
   activityUUID: string
 ) {
-  return `${getApiUrl()}api/v1/stream/hls/${orgUUID}/${courseUUID}/${activityUUID}/master.m3u8`
+  return `/api/protected-media/api/v1/stream/hls/${orgUUID}/${courseUUID}/${activityUUID}/master.m3u8`
 }
 
 /**
@@ -50,7 +50,7 @@ export function getActivityHlsThumbnailsUrl(
   activityUUID: string,
   spritePath: string
 ) {
-  return `${getApiUrl()}api/v1/stream/hls/${orgUUID}/${courseUUID}/${activityUUID}/${spritePath}`
+  return `/api/protected-media/api/v1/stream/hls/${orgUUID}/${courseUUID}/${activityUUID}/${spritePath}`
 }
 
 /**
@@ -63,7 +63,7 @@ export function getActivityCaptionUrl(
   activityUUID: string,
   lang: string
 ) {
-  return `${getApiUrl()}api/v1/stream/captions/${orgUUID}/${courseUUID}/${activityUUID}/${lang}.vtt`
+  return `/api/protected-media/api/v1/stream/captions/${orgUUID}/${courseUUID}/${activityUUID}/${lang}.vtt`
 }
 
 /**
@@ -77,7 +77,7 @@ export function getVideoBlockStreamUrl(
   blockUUID: string,
   filename: string
 ) {
-  return `${getApiUrl()}api/v1/stream/block/${orgUUID}/${courseUUID}/${activityUUID}/${blockUUID}/${filename}`
+  return `/api/protected-media/api/v1/stream/block/${orgUUID}/${courseUUID}/${activityUUID}/${blockUUID}/${filename}`
 }
 
 /**
@@ -90,7 +90,7 @@ export function getVideoBlockHlsMasterUrl(
   activityUUID: string,
   blockUUID: string
 ) {
-  return `${getApiUrl()}api/v1/stream/block-hls/${orgUUID}/${courseUUID}/${activityUUID}/${blockUUID}/master.m3u8`
+  return `/api/protected-media/api/v1/stream/block-hls/${orgUUID}/${courseUUID}/${activityUUID}/${blockUUID}/master.m3u8`
 }
 
 /** URL of a video block's HLS hover-preview sprite sheet. */
@@ -101,7 +101,7 @@ export function getVideoBlockHlsThumbnailsUrl(
   blockUUID: string,
   spritePath: string
 ) {
-  return `${getApiUrl()}api/v1/stream/block-hls/${orgUUID}/${courseUUID}/${activityUUID}/${blockUUID}/${spritePath}`
+  return `/api/protected-media/api/v1/stream/block-hls/${orgUUID}/${courseUUID}/${activityUUID}/${blockUUID}/${spritePath}`
 }
 
 /**
@@ -115,7 +115,7 @@ export function getAudioBlockStreamUrl(
   blockUUID: string,
   filename: string
 ) {
-  return `${getApiUrl()}api/v1/stream/block/audio/${orgUUID}/${courseUUID}/${activityUUID}/${blockUUID}/${filename}`
+  return `/api/protected-media/api/v1/stream/block/audio/${orgUUID}/${courseUUID}/${activityUUID}/${blockUUID}/${filename}`
 }
 
 export function getCourseThumbnailMediaDirectory(
@@ -190,19 +190,19 @@ export function getActivityBlockMediaDirectory(
   type: string
 ) {
   if (type == 'pdfBlock') {
-    let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseId}/activities/${activityId}/dynamic/blocks/pdfBlock/${blockId}/${fileId}`
+    let uri = `/api/protected-media/content/orgs/${orgUUID}/courses/${courseId}/activities/${activityId}/dynamic/blocks/pdfBlock/${blockId}/${fileId}`
     return uri
   }
   if (type == 'videoBlock') {
-    let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseId}/activities/${activityId}/dynamic/blocks/videoBlock/${blockId}/${fileId}`
+    let uri = `/api/protected-media/content/orgs/${orgUUID}/courses/${courseId}/activities/${activityId}/dynamic/blocks/videoBlock/${blockId}/${fileId}`
     return uri
   }
   if (type == 'imageBlock') {
-    let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseId}/activities/${activityId}/dynamic/blocks/imageBlock/${blockId}/${fileId}`
+    let uri = `/api/protected-media/content/orgs/${orgUUID}/courses/${courseId}/activities/${activityId}/dynamic/blocks/imageBlock/${blockId}/${fileId}`
     return uri
   }
   if (type == 'audioBlock') {
-    let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseId}/activities/${activityId}/dynamic/blocks/audioBlock/${blockId}/${fileId}`
+    let uri = `/api/protected-media/content/orgs/${orgUUID}/courses/${courseId}/activities/${activityId}/dynamic/blocks/audioBlock/${blockId}/${fileId}`
     return uri
   }
 }
@@ -216,7 +216,7 @@ export function getTaskRefFileDir(
   fileID : string
 
 ) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseUUID}/activities/${activityUUID}/assignments/${assignmentUUID}/tasks/${assignmentTaskUUID}/${fileID}`
+  let uri = `/api/protected-media/content/orgs/${orgUUID}/courses/${courseUUID}/activities/${activityUUID}/assignments/${assignmentUUID}/tasks/${assignmentTaskUUID}/${fileID}`
   return uri
 }
 
@@ -230,7 +230,7 @@ export function getAssignmentSolutionFileDir(
   assignmentUUID: string,
   fileID: string
 ) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseUUID}/activities/${activityUUID}/assignments/${assignmentUUID}/solution/${fileID}`
+  let uri = `/api/protected-media/content/orgs/${orgUUID}/courses/${courseUUID}/activities/${activityUUID}/assignments/${assignmentUUID}/solution/${fileID}`
   return uri
 }
 
@@ -242,7 +242,7 @@ export function getTaskFileSubmissionDir(
   assignmentTaskUUID: string,
   fileSubID : string
 ) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseUUID}/activities/${activityUUID}/assignments/${assignmentUUID}/tasks/${assignmentTaskUUID}/subs/${fileSubID}`
+  let uri = `/api/protected-media/content/orgs/${orgUUID}/courses/${courseUUID}/activities/${activityUUID}/assignments/${assignmentUUID}/tasks/${assignmentTaskUUID}/subs/${fileSubID}`
   return uri
 }
 
@@ -254,11 +254,11 @@ export function getActivityMediaDirectory(
   activityType: string
 ) {
   if (activityType == 'video') {
-    let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseUUID}/activities/${activityUUID}/video/${fileId}`
+    let uri = `/api/protected-media/content/orgs/${orgUUID}/courses/${courseUUID}/activities/${activityUUID}/video/${fileId}`
     return uri
   }
   if (activityType == 'documentpdf') {
-    let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseUUID}/activities/${activityUUID}/documentpdf/${fileId}`
+    let uri = `/api/protected-media/content/orgs/${orgUUID}/courses/${courseUUID}/activities/${activityUUID}/documentpdf/${fileId}`
     return uri
   }
 }
